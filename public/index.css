@@ -1,0 +1,19 @@
+:root {
+  color: white;
+  background: radial-gradient(
+    farthest-corner at 350% 0,
+    #A82A85 10%,
+    #0F1228 70%);
+  
+  /*Browser optimizations*/
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  
+}
+
+body {
+  margin: 0;
+  height: 600vh;
+}
