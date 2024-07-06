@@ -4,11 +4,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Ruda:wght@400..900&display=swap');
 
 .Profile{
-  margin-left: 15px;
   height: 100vh;
+  margin-bottom: 50px;
 }
 
-.Title {
+.Profile .UpTitle {
   display: inline;
   font-size: 2.7em;
   font-family: 'Roboto';
@@ -19,17 +19,17 @@
   user-select: none;
 }
 
-.Navigator{
+.Profile .Navigator{
   display: flex;
   float: right;
 }
 
-.MyProfile{
+.Profile .MyProfile{
   display: flex;
   width: 100%;
 }
 
-.MyFace{
+.Profile .MyFace{
   z-index: -1;
   position: relative;
   float: right;
@@ -40,29 +40,29 @@
   -webkit-user-drag: none;
 }
 
-.Contact-Me{
+.Profile .Contact-Me{
     border: 2.5px solid transparent;
     background: linear-gradient(#0f1228,#0f1228) padding-box,linear-gradient(90deg,#5968F3,#DE00F2) border-box;
 }
 
 /*#region Scroll Down*/
 
-.ScrollDown{
+.Profile .ScrollDown{
   font: 2vh 'Open Sans';
   color:white;
   position:absolute;
-  top:calc(85vh - 20px);
+  top:calc(85vh - 40px);
   left:calc(50vw - 200px);
   }
-  .ScrollDown div{
+  .Profile .ScrollDown div{
     width: 20vw;
     text-align: center;
     margin-top: -20px;
   }
-  .Arrows{
+  .Profile .Arrows{
     background-color: red;
   }
-  .Arrows span {
+  .Profile .Arrows span {
     position: absolute;
     top: 0;
     left: 50%;
@@ -77,16 +77,16 @@
     animation: ScrollDownAnimation 2s infinite;
     box-sizing: border-box;
   }
-  .Arrows span:nth-of-type(1) {
+  .Profile .Arrows span:nth-of-type(1) {
     -webkit-animation-delay: 0s;
     animation-delay: 0s;
   }
-  .Arrows span:nth-of-type(2) {
+  .Profile .Arrows span:nth-of-type(2) {
     top: 16px;
     -webkit-animation-delay: .15s;
     animation-delay: .15s;
   }
-  .Arrows span:nth-of-type(3) {
+  .Profile .Arrows span:nth-of-type(3) {
     top: 32px;
     -webkit-animation-delay: .3s;
     animation-delay: .3s;
@@ -117,7 +117,7 @@
 /* #endregion */
 
 
-button{
+.ResumeContactButtons button{
   font-family: "Ruda";
   font-weight: 600;
   color: white;
@@ -132,7 +132,7 @@ button{
   cursor: pointer;
 }
 
-p{
+.ProfileText{
   font-family: 'Ruda';
   margin-bottom: 30px;
   z-index: 1;
@@ -141,37 +141,38 @@ p{
   user-select: none;
 }
 
-span:nth-child(2){
-  color:#FF69B4;
-  font-weight: 600;  
-}
 
-span:nth-child(4){
-  color:#15F8A6;
-  font-weight: 600;
-}
-
-ul{
-  display: inline;
-  list-style-type: none;
-  margin-left: 0;
-  padding: 0;
-}
-
-li{
-  display:inline;
-  margin-right: 1.5em;
-  text-align: center;
-}
-
-li a{
+.Navigator li a{
   user-select: none;
   font-family: 'Open Sans';
   font-size: 1.2em;
   cursor: pointer;
 }
 
-ul li img{
+.ProfileText span:nth-child(2){
+  color:#FF69B4;
+  font-weight: 600;  
+}
+
+.ProfileText span:nth-child(4){
+  color:#15F8A6;
+  font-weight: 600;
+}
+
+.Profile ul{
+  list-style-type: none;
+  margin-left: 0;
+  padding: 0;
+}
+
+.Profile li{
+  display:inline;
+  margin-right: 1.5em;
+  text-align: center;
+}
+
+
+.Profile ul li img{
   width: 5vh;
   cursor: pointer;
 }

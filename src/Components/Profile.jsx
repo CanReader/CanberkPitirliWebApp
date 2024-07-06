@@ -1,6 +1,13 @@
 import { Component } from 'react';
-import path from 'path';
 import '../../public/Profile.css'
+
+import MyFace from '../../public/My Face.png';
+import GetResume from '../../public/Get Resume.svg';
+import ContactMe from '../../public/Contact Me.svg';
+import Github from '../../public/Github.svg';
+import Linkedin from '../../public/Linkedin.svg';
+import X from '../../public/X.svg';
+import StackOverflow from '../../public/Stackoverflow.svg';
 
 const SocialMediaLinks = {
     'Github': 'https://github.com/CanReader',
@@ -14,16 +21,42 @@ class Profile extends Component {
         const exist = Object.keys(SocialMediaLinks).indexOf(icon) > -1;
         if (!icon || !exist)
             return <></>;
+        var src = '';
 
-        return <img src={`../../public/${icon}.svg`} alt={icon} />
+        switch(icon){
+            case 'Github':
+                src = Github;
+                break;
+            case 'Linkedin':
+                src = Linkedin;
+                break;
+            case 'StackOverflow':
+                src = StackOverflow
+                break;
+            case 'X':
+                src = X;
+                break;
+        }
+
+        return <a href={SocialMediaLinks[icon]}>
+                    <img src={src} alt={icon} />
+            </a>
     }
 
     Button({ children }) {
+        var src = '';
+
+        if(children == 'Get Resume')
+            src = GetResume;
+        else
+            src = ContactMe; 
+
         return (
             <button className={children.replace(' ', '-')}>
-                <img src={`../../public/${String(children)}.svg`}
+                <img src={src}
                     width={"30vh"}
-                    style={{ marginRight: 15 }} />
+                    style={{ marginRight: 15 }} 
+                    alt={children}/>
                 {children}
             </button>);
     }
@@ -32,7 +65,7 @@ class Profile extends Component {
         return (
             <div className='Profile'>
                 <div className='UpPanel'>
-                    <h1 className='Title'>CANBERK</h1>
+                    <h1 className='UpTitle'>CANBERK</h1>
                     <div className='Navigator'>
                         <ul>
                             <li><a>About Me    </a></li>
@@ -53,7 +86,7 @@ class Profile extends Component {
                                 Scroll down to learn more about me
                             </div>
                         </div>
-                        <p>
+                        <p className='ProfileText'>
                             Hello there, <br />
                             My name is <span>Canberk Pitirli</span> <br />
                             I'm a <span>professional developer</span> <br />
@@ -65,12 +98,12 @@ class Profile extends Component {
                             }
                         </ul>
 
-                        <div style={{ marginTop: "5vh", display: "flex" }}>
+                        <div className='ResumeContactButtons' style={{ marginTop: "5vh", display: "flex" }}>
                             <this.Button>Contact Me</this.Button>
                             <this.Button>Get Resume</this.Button>
                         </div>
                     </div>
-                    <img className='MyFace' src='../../public/My Face.png' alt='This is my face :D' />
+                    <img className='MyFace' src={MyFace} alt='This is my face :D' />
                 </div>
             </div>
         );
