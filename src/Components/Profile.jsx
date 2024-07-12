@@ -1,13 +1,13 @@
 import { Component } from 'react';
-import '../../public/Profile.css'
+import '../../public/stylesheets/Profile.css'
 
-import MyFace from '../../public/My Face.png';
-import GetResume from '../../public/Get Resume.svg';
-import ContactMe from '../../public/Contact Me.svg';
-import Github from '../../public/Github.svg';
-import Linkedin from '../../public/Linkedin.svg';
-import X from '../../public/X.svg';
-import StackOverflow from '../../public/Stackoverflow.svg';
+import MyFace from '../../public/img/Profile.png';
+import GetResume from '../../public/img/Get Resume.svg';
+import ContactMe from '../../public/img/Contact Me.svg';
+import Github from '../../public/img/Github.svg';
+import Linkedin from '../../public/img/Linkedin.svg';
+import X from '../../public/img/X.svg';
+import StackOverflow from '../../public/img/Stackoverflow.svg';
 
 const SocialMediaLinks = {
     'Github': 'https://github.com/CanReader',
@@ -71,21 +71,13 @@ class Profile extends Component {
                             <li><a>About Me    </a></li>
                             <li><a>Skills      </a></li>
                             <li><a>Experiences </a></li>
-                            <li><a>Reading List</a></li>
                             <li><a>Contact Me  </a></li>
                         </ul>
                     </div>
                 </div>
                 <div className='MyProfile'>
                     <div style={{ marginRight: "10%", position: "absolute" }}>
-                        <div class="ScrollDown">
-                            <a className='Arrows'>
-                                <span /><span /><span />
-                            </a>
-                            <div>
-                                Scroll down to learn more about me
-                            </div>
-                        </div>
+                        
                         <p className='ProfileText'>
                             Hello there, <br />
                             My name is <span>Canberk Pitirli</span> <br />
@@ -94,7 +86,9 @@ class Profile extends Component {
                         <ul>
                             {
                                 Object.keys(SocialMediaLinks).map((val, i) =>
-                                    <li><this.SocialMediaButton icon={val} /></li>)
+                                    <li key={val}>
+                                        <this.SocialMediaButton icon={val}/>
+                                    </li>)
                             }
                         </ul>
 
@@ -104,6 +98,14 @@ class Profile extends Component {
                         </div>
                     </div>
                     <img className='MyFace' src={MyFace} alt='This is my face :D' />
+                </div>
+                <div className="ScrollDown">
+                    <a className='Arrows'>
+                        <span /><span /><span />
+                    </a>
+                    <div>
+                        Scroll down to learn more about me
+                    </div>
                 </div>
             </div>
         );
