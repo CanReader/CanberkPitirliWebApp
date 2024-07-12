@@ -199,7 +199,7 @@ class Experiences extends Component {
   }
 
   render() {
-    return (<div className='Experiences'>
+    return (<section className='Experiences'>
       <h1 className='Title'>Projects I made</h1>
       <VerticalTimeline>
 
@@ -234,7 +234,7 @@ class Experiences extends Component {
             );
           })}
       </VerticalTimeline>
-    </div>);
+    </section>);
   }
 }
 

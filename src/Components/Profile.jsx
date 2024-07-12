@@ -63,7 +63,7 @@ class Profile extends Component {
 
     render() {
         return (
-            <div className='Profile'>
+            <section className='Profile'>
                 <div className='UpPanel'>
                     <h1 className='UpTitle'>CANBERK</h1>
                     <div className='Navigator'>
@@ -107,7 +107,7 @@ class Profile extends Component {
                         Scroll down to learn more about me
                     </div>
                 </div>
-            </div>
+            </section>
         );
     }
 }

@@ -78,7 +78,7 @@ class MySkills extends Component
     }
 
     render(){
-        return (<div className="MySkills">
+        return (<section className="MySkills">
             <h1 className='Title'>My Skills</h1>
             <div className='SkillList'>
                 {
@@ -86,7 +86,7 @@ class MySkills extends Component
                           <this.SkillCard key={i} object={val}/>)
                 }
             </div>
-        </div>);
+        </section>);
     }
 }
 

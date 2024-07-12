@@ -5,7 +5,7 @@ import MyFace2 from '../../public/img/Profile2.png'
 
 class AboutMe extends Component{
     render(){
-        return (<div className='AboutMe'>
+        return (<section className='AboutMe'>
         <h1 className='Title'>Who am I?</h1>
         <div className='Text'>
             <p>
@@ -13,7 +13,7 @@ class AboutMe extends Component{
             </p>
             <img src={MyFace2}/>
         </div>
-        </div>);
+        </section>);
     }
 }
 
