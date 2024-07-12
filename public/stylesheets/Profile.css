@@ -27,6 +27,8 @@
 .Profile .MyProfile{
   display: flex;
   width: 100%;
+  margin-top: auto;
+  margin-bottom: auto;
 }
 
 .Profile .MyFace{
@@ -34,8 +36,8 @@
   position: relative;
   float: right;
   width: 70vh;
-  left: calc(100vw - 75vh);
   height: auto;
+  left: calc(100vw - (70vh + 5vh));
   user-select: none;
   -webkit-user-drag: none;
 }
@@ -116,7 +118,6 @@
 
 /* #endregion */
 
-
 .ResumeContactButtons button{
   font-family: "Ruda";
   font-weight: 600;
@@ -136,7 +137,7 @@
   font-family: 'Ruda';
   margin-bottom: 30px;
   z-index: 1;
-  font-size: 3.5em;
+  font-size: 4.2vw;
   font-weight: 600;
   user-select: none;
 }
