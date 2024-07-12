@@ -1,7 +1,7 @@
 import { Component } from 'react';
-import path from 'path';
-import '../../public/AboutMe.css'
-import MyFace2 from '../../public/MyFace2.png'
+import '../../public/stylesheets/AboutMe.css'
+
+import MyFace2 from '../../public/img/Profile2.png'
 
 class AboutMe extends Component{
     render(){
