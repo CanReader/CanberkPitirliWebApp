@@ -1,4 +1,6 @@
 import { Component } from 'react';
+import Typewriter from 'typewriter-effect';
+
 import '../../public/stylesheets/Profile.css'
 
 import MyFace from '../../public/img/Profile.png';
@@ -15,6 +17,13 @@ const SocialMediaLinks = {
     'X': 'https://x.com/can_reader',
     'StackOverflow': 'https://stackoverflow.com/users/13887310/canberk'
 }
+
+const titles = [
+    'Professional developer',
+    'Game developer',
+    'Game designer',
+    'Expert AI developer'
+];
 
 class Profile extends Component {
     SocialMediaButton({ icon }) {
@@ -52,7 +61,14 @@ class Profile extends Component {
             src = ContactMe; 
 
         return (
-            <button className={children.replace(' ', '-')}>
+            <button onClick={() => {
+                if(children == 'Get Resume'){
+                    window.open('https://drive.google.com/file/d/16QPpz5uZtzWhiHhM8AgzUK27B-e7Rnyj/view?usp=drive_link');
+                }
+                else{
+
+                }
+            }} className={children.replace(' ', '-')}>
                 <img src={src}
                     width={"30vh"}
                     style={{ marginRight: 15 }} 
@@ -81,7 +97,13 @@ class Profile extends Component {
                         <p className='ProfileText'>
                             Hello there, <br />
                             My name is <span>Canberk Pitirli</span> <br />
-                            I'm a <span>professional developer</span> <br />
+                            I'm a <span>
+                                <Typewriter className="typewriter" options={{
+                                    strings:titles,
+                                    autoStart: true,
+                                    loop: true,
+                                }}/>
+                                </span><br/>
                         </p>
                         <ul>
                             {

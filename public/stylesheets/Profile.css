@@ -53,8 +53,8 @@
   font: 2vh 'Open Sans';
   color:white;
   position:absolute;
-  top:calc(85vh - 40px);
-  left:calc(50vw - 200px);
+  margin-left: 40%;
+  margin-top: -5%;
   }
   .Profile .ScrollDown div{
     width: 20vw;
@@ -151,13 +151,19 @@
 }
 
 .ProfileText span:nth-child(2){
+  display:inline;
   color:#FF69B4;
   font-weight: 600;  
 }
 
 .ProfileText span:nth-child(4){
+  display:inline;
   color:#15F8A6;
   font-weight: 600;
+}
+
+.Typewriter{
+  display: inline;
 }
 
 .Profile ul{

@@ -19,7 +19,7 @@
 }
 
 .MailCard{
-    width: 40%;
+    width: 28%;
     height: 60%;
     margin: auto;
     align-items: center;
@@ -108,11 +108,12 @@
 
 .Copyright{
     font-family: "Raleway";
-    font-size: 1.1em;
+    font-size: 0.3em;
     text-align: center;
     margin: 0;
     margin-left: -20px;
     margin-right: -20px;
     background-color: #363636;
     padding: 2px;
+    padding-top: 5px;
 }

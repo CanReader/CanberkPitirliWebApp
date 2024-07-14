@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import { Button, TextField } from '@mui/material';
+import emailjs from '@emailjs/browser';
 
 import '../../public/stylesheets/ContactMe.css'
 
@@ -7,12 +8,40 @@ import linkedin from '../../public/img/Linkedin.svg'
 import x from '../../public/img/X.svg'
 import ig from '../../public/img/Instagram Logo.svg'
 
-class ContactMe extends Component {
-    sendMail() {
+var name = '';
+var subject = '';
+var message = '';
+var email = '';
 
+emailjs.init({
+    publicKey: '4_l3B7W070UlktnIE',
+  blockHeadless: true,
+})
+
+class ContactMe extends Component {
+    sendMail(e) {
+        e.preventDefault();
+        
+        if(name && subject && email){
+            emailjs.send("service_2bl3p3k","template_jrdzeb3",{
+                from_name: name,
+                subject: subject,
+                to_name: "Canberk Pitirli",
+                message: message,
+                from_mail: email,
+                reply_to: 'canberkcs1912@gmail.com',
+                }).then(
+                    (response) => {
+                    console.log('SUCCESS!', response.status, response.text);
+                  },
+                  (error) => {
+                    console.log('FAILED...', error);
+                  },);
+        }
     }
 
     onHoverMediaButton(isIn,media){
+        console.log(isIn ? 'Cursor inside' : 'Cursor outside');
     }
 
     render() {
@@ -25,28 +54,41 @@ class ContactMe extends Component {
                             <div className='MailCardLeft'>
                                 <TextField
                                     className='NameBox'
+                                    onChange={(e) => {name = e.target.value}}
                                     label="Full Name"
                                     variant='standard'
+                                    required={true}
                                 />
                                 <TextField
                                     className='SubjectBox'
+                                    onChange={(e) => {subject = e.target.value}}
                                     label="Subject"
                                     variant='standard'
+                                    required={true}
+                                />
+                                <TextField
+                                    className='EmailBox'
+                                    onChange={(e) => {email = e.target.value}}
+                                    label="Email"
+                                    variant='standard'
+                                    required={true}
                                 />
                             </div>
                             <div className='MailCardRight'>
                                 <TextField
                                     className='MessageBox'
+                                    onChange={(e) => {message = e.target.value}}
                                     variant='outlined'
                                     label="Message"
                                     multiline={true}
-                                    minRows={7}
-                                    maxRows={11}
-                                    style={{marginBottom:15}}
+                                    size='medium'
+                                    minRows={11}
+                                    maxRows={15}
+                                    style={{marginBottom:5}}
                                 />
                                 <Button
                                     variant='contained'
-                                    onClick={this.sendMail}>
+                                    onClick={(e) => this.sendMail(e)}>
                                     Submit
                                 </Button>
                             </div>
