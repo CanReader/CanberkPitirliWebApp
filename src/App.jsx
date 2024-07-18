@@ -1,19 +1,22 @@
-import Profile from './Components/Profile';
-import AboutMe from './Components/AboutMe';
-import MySkills from './Components/MySkills';
-import Experiences from './Components/Experiences';
-import Contact from './Components/ContactMe';
+import "./App.css";
+import Profile from "./components/Profile";
+import Navbar from "./components/Navbar";
+import About from "./components/About";
+import Skills from "./components/Skills";
+import Projects from "./components/Projects";
+import Contact from "./components/Contact";
 
-function App() {
-  return (
-    <>
-      <Profile/>
-      <AboutMe/>
-      <MySkills/>
-      <Experiences/>
-      <Contact/>
-    </>
-  )
+export default function App() {
+    return (
+        <>
+            <Navbar />
+            <main className=" bg-bgDark text-textWhite px-5 md:px-8">
+                <Profile/>
+                <About/>
+                <Skills/>
+                <Projects/>
+                <Contact/>
+            </main>
+        </>
+    );
 }
-
-export default App;
