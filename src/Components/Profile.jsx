@@ -21,7 +21,7 @@ const ProfileSection = () => {
             <section
                 className="sm:px-8 overflow-hidden pt-[110px] sm:pt-[120px] sm:pb-10 pb-8"
                 id="intro"
-                style={{paddingBottom:'0',paddingTop:'20vh'}}
+                style={{paddingBottom:'0',paddingTop:'20vh',paddingBottom:'5%'}}
             >
                 <div className="grid grid-cols-1 sm:grid-cols-12 place-items-center">
                     {/* The left of the component */}
@@ -47,6 +47,8 @@ const ProfileSection = () => {
                                 500,
                                 "I'm a professional developer",
                                 1000,
+				"I'm a full-stack developer",
+				1000,
                                 "I'm a game developer",
                                 1000,
                                 "I'm a game designer",
@@ -105,12 +107,12 @@ const ProfileSection = () => {
                         }
                         transition={{ duration: 0.8 }}
                         className="col-span-5 w-full h-full lg:h-[40px] h-[80vh] relative mt-16 sm:-mt-4"
-                        style={{marginTop:'0%'}}
                     >
                         <Suspense>
                             <img
                                 src="/images/Profile.png"
-                                className="hidden sm:block absolute transform -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2 h-[80vh] m:h-[0px]"/>
+                                loading="lazy"
+                                className="hidden sm:block absolute transform -translate-x-1/2 -translate-y-1/2 top-1/10 left-1/2 h-[60vh] m:h-[0px]"/>
                         </Suspense>
                     </motion.div>
                 </div>
