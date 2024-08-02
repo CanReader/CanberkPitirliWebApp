@@ -53,6 +53,7 @@ const About = () => {
                     <Suspense>
                         <img
                             src="/images/Profile2.png"
+                            loading="eager"
                             alt="Profile 2"
                             className="w-[300px] h-[300px] md:w-[400px] md:h-[400px] "
                         />

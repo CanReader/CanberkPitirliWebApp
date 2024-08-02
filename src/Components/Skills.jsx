@@ -8,7 +8,7 @@ import CSLogo from './../../public/images/Cs Logo.svg';
 import CPPLogo from './../../public/images/Cpp Logo.svg';
 import JLogo from './../../public/images/Java Logo.svg';
 import JSLogo from './../../public/images/JS Logo.svg';
-import UELogo from './../../public/images/UE Logo.svg';
+import UELogo from './../../public/images/UE Logo2.svg';
 import PLogo from './../../public/images/Python Logo.svg';
 import ULogo from './../../public/images/Unity Logo.svg';
 
@@ -83,7 +83,7 @@ const SkillSection = () => {
     };
 
     return (
-        <section className=" sm:px-8 py-[80px]" id="projects">
+        <section className=" sm:px-8 py-[80px]" id="skills">
             <motion.div
                 ref={refHeading}
                 variants={variants1}
@@ -120,7 +120,7 @@ const SkillSection = () => {
                                         marginBottom:'20%',
                                         textAlign:'center'
                                     }}>
-                                        <img src={skill.image} style={{width:'25%',marginLeft:'auto',marginRight:'auto',marginBottom:10}}/>
+                                        <img src={skill.image} loading="eager" style={{width:'25%',marginLeft:'auto',marginRight:'auto',marginBottom:10}}/>
                                         <h1 style={{fontSize:'1.2em'}}>{skill.name}</h1>
                                         <p style={{fontFamily:'ui-sans-serif',marginRight:10,marginLeft:10}}>{skill.description}</p>
                                         <Progress style={{marginTop:'auto'}} percent={skill.progress*100} status='success'
