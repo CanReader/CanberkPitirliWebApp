@@ -21,6 +21,12 @@ import DXCraft3 from '/images/DXCraft3.png';
 import DXCraft4 from '/images/DXCraft4.png';
 import DXCraft5 from '/images/DXCraft5.png';
 
+//
+import WPFCourse1 from '/images/WPFCourse1.png';
+import WPFCourse2 from '/images/WPFCourse2.png';
+import WPFCourse3 from '/images/WPFCourse3.png';
+import WPFCourse4 from '/images/WPFCourse4.png';
+
 //Brokeout images
 import Brokeout1 from '/images/Brokeout1.png';
 import Brokeout2 from '/images/Brokeout2.png';
@@ -65,7 +71,6 @@ import "react-sweet-progress/lib/style.css";
 
 const projects = [
     {
-      id: 0,
       title: 'Focus Kingdom',
       logo: FKLogo,
       desc: 'Focus kingdom is such an amazing place for people who stuggle to concentrate! \
@@ -85,11 +90,11 @@ const projects = [
       images: [FKAd1,FKAd2,FKAd3,FKAd4],
     },
     {
-        id: 1,
         title: 'DXCraft',
         logo: DXCraftLogo,
-        desc: 'This is a small-scale Minecraft-inspired project developed as a learning exercise using C++ and DirectX. Its primary purpose is to explore 3D graphics programming concepts, world generation, and game engine fundamentals.\
-         While it features basic block-based gameplay, it lacks the depth and complexity of a full-fledged game.',
+        desc: `This is a small-scale Minecraft-inspired project developed as a learning exercise using C++ and DirectX. Its primary purpose is to explore 3D graphics programming concepts, world generation, and game engine fundamentals.\
+         While it features basic block-based gameplay, it lacks the depth and complexity of a full-fledged game. \
+         Images are used as representation from original java Minecraft. Images of the game will be added soon...`,
         date: '2022',
         isVisible:true,
         type: 'Game',
@@ -103,10 +108,27 @@ const projects = [
         images: [DXCraft1,DXCraft2,DXCraft3,DXCraft4,DXCraft5],
       },
       {
-        id: 2,
+        title: 'Uzman C# WPF course',
+        desc: `The industry's growing demand for skilled WPF developers led to the creation of this comprehensive course.\
+        Designed to equip learners with the essential skills and knowledge needed to excel in WPF development,\
+        the course remains available on Udemy. Whether you're a beginner looking to start your journey or a seasoned developer aiming to \
+        enhance attendence's expertise, this course offers valuable insights and practical experience in WPF.`,
+        date: '2022',
+        isVisible:true,
+        type: 'Course',
+        language: [CSLogo],
+        iconBackground: `#8969af`,
+        progress: 1,
+        progressStatus: 'Completed',
+        platform:[WindowsLogo,AndroidLogo,AppleLogo],
+        techs:[WPFLogo,VSLogo],
+        store:'https://www.udemy.com/course/uzman-wpf-egitim/',
+        images: [WPFCourse1,WPFCourse2,WPFCourse2,WPFCourse3,WPFCourse4],
+      },
+      {
         title: 'RubySoft',
-        desc: 'RubySoft is firstly started to fix problems of most POS applications for restaurant like organizations.\
-        ',
+        desc: `RubySoft is firstly started to fix problems of most POS applications for restaurant like organizations.\
+         Images are used as representation from SambaPos. Images of the app will be added soon...`,
         date: '2021',
         isVisible:true,
         type: 'Application',
@@ -117,14 +139,12 @@ const projects = [
         platform:[WindowsLogo],
         techs:[WPFLogo,VSLogo,PSQL],
         git:'https://github.com/CanReader/Ruby',
-        images: [
-            Rubycafe1,
+        images: [Rubycafe1,
             Rubycafe2
         ],
       },
       ,
       {
-        id: 3,
         title: 'Brokeout',
         desc: 'A 3D breakout game made with OpenGL and GLFW. This project is initialized for learning the path of OpenGL,\
         inspired by Minecraft',
@@ -141,7 +161,6 @@ const projects = [
         images: [Brokeout1,Brokeout2,Brokeout3,Brokeout4,Brokeout5,Brokeout6],
       },
       {
-        id: 4,
         title: 'Endless Combat',
         desc: 'Endless Combat, is a coop game which is about fighting as characters with unique skills against zombies,\
     the game also contains free for all mode; Unreal Engine is used as game engine to create a better network system,effects,game mechanics and maps.\
@@ -246,11 +265,11 @@ const ProjectSection = () => {
             <VerticalTimeline>
 
         {
-          projects.map(project => {
+          projects.map((project,index) => {
             return (
 
               <VerticalTimelineElement
-                key={project.id}
+                key={index}
                 date={project.date}
                 iconStyle={
                   {
