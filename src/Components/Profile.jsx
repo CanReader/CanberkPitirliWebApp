@@ -21,7 +21,7 @@ const ProfileSection = () => {
             <section
                 className="sm:px-8 overflow-hidden pt-[110px] sm:pt-[120px] sm:pb-10 pb-8"
                 id="intro"
-                style={{paddingBottom:'0',paddingTop:'20vh',paddingBottom:'5%'}}
+                style={{paddingBottom:'0',paddingTop:'20vh',paddingBottom:'15%'}}
             >
                 <div className="grid grid-cols-1 sm:grid-cols-12 place-items-center">
                     {/* The left of the component */}
