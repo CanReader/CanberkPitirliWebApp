@@ -50,7 +50,7 @@ const Skills = [
         image:PLogo,
         description:'I firstly started python for get started with Artificial Intelligence with TensorFlow, Numpy, Pandas, SciPy libraries and still learning...',
         color:'#01CE6A',
-        progress: 0.75
+        progress: 0.79
     },
     
     {
@@ -66,7 +66,7 @@ const Skills = [
         image:ULogo,
         description:'Unity is my first interaction with both software and game development. Unfortunately because I passed to UE4, I gave a long break of using Unity but still I use unity to develop hyper casual projects',
         color:'#818181',
-        progress: 0.65
+        progress: 0.45
     }
 ];
 
