@@ -6,6 +6,20 @@ import { Button } from "@mui/material";
 import { Carousel } from "react-responsive-carousel";
 import { Progress } from 'react-sweet-progress';
 
+//Rebellion images
+import Rebellion1 from '/images/Rebellion1.png'
+import Rebellion2 from '/images/Rebellion2.png'
+import Rebellion3 from '/images/Rebellion3.png'
+
+//Introduction to DirectX programming images
+import DXCourse1 from '/images/DXCourse1.png'
+import DXCourse2 from '/images/DXCourse2.png'
+import DXCourse3 from '/images/DXCourse3.png'
+import DXCourse4 from '/images/DXCourse4.png'
+import DXCourse5 from '/images/DXCourse5.png'
+import DXCourse6 from '/images/DXCourse6.png'
+import DXCourse7 from '/images/DXCourse7.png'
+
 //Focus Kingdom images
 import FKLogo from '/images/FKLogo.png';
 import FKAd1 from '/images/FK_Ad1.png';
@@ -21,7 +35,7 @@ import DXCraft3 from '/images/DXCraft3.png';
 import DXCraft4 from '/images/DXCraft4.png';
 import DXCraft5 from '/images/DXCraft5.png';
 
-//
+//WPF Course
 import WPFCourse1 from '/images/WPFCourse1.png';
 import WPFCourse2 from '/images/WPFCourse2.png';
 import WPFCourse3 from '/images/WPFCourse3.png';
@@ -71,24 +85,65 @@ import "react-sweet-progress/lib/style.css";
 
 const projects = [
     {
-      title: 'Focus Kingdom',
-      logo: FKLogo,
-      desc: 'Focus kingdom is such an amazing place for people who stuggle to concentrate! \
-      The creation of this app is focused on gamify users study/work as a real-time strategy game.\
-      With this attitude, users will be motivated for work more at their own tasks to add these gorgeous buildings to their virtual world.',
-      date: '2023-2024',
+      title: 'Rebellion',
+      desc: 'Rebellion is a fast-paced, third-person shooter pitting rival factions, Special Forces and Rebels,\
+       in intense 5v5 battles. Players select unique characters with distinct abilities.\
+       Teamwork and strategy are crucial for victory as players capture and defend objectives in dynamic,\
+       destructible environments.\
+       The project still work in progress, therefore buttons in bellow may not work',
+      date: '2024-2025',
       isVisible:true,
-      type: 'App',
-      language: [JLogo, JSLogo],
-      iconBackground: `linear-gradient(to right,${'#F2B40C'},90%,${'#EDCE24'})`,
-      progress: 0.8,
-      progressStatus: 'Completed',
-      platform:[AndroidLogo, AppleLogo],
-      techs:[ASLogo,LibGDXLogo,MYLogo,NodeLogo],
-      git:'https://github.com/CanReader/FocusKingdomServer',
-      store:'https://play.google.com/store/apps/details?id=com.focus.kingdom.release',
-      images: [FKAd1,FKAd2,FKAd3,FKAd4],
+      type: 'Game',
+      language: [CPPLogo],
+      iconBackground: `#4881bf`,
+      progress: 0.05,
+      progressStatus: 'Not started',
+      platform:[WindowsLogo],
+      techs:[UELogo,VSLogo],
+      store:'https://store.steampowered.com/app/1501560/Rebellion/',
+      designdoc:'https://docs.google.com/document/d/1CiA4SwRwFJmwA5Pn-PDyF30bffnJIeWa/edit?usp=sharing&ouid=109227678266582583277&rtpof=true&sd=true',
+      images: ['https://placehold.co/90x50?text=Rebellion+will+be+released\\nin+28+December',Rebellion1,Rebellion2,Rebellion3],
     },
+    {
+        title: 'Advanced game programming with DirectX 11',
+        desc: `Unleash your creativity and master the art of game development with our in-depth DirectX 11 course.\ 
+        Delve into the intricacies of 3D graphics programming, \
+        building a solid foundation for crafting immersive and visually stunning game worlds. \
+        From the fundamentals of DirectX 11 to advanced rendering techniques, you'll gain the expertise to bring your \
+        game ideas to life.\
+        The project will be released in 12 october, therefore buttons in bellow may not work`,
+        date: '2024-2024',
+        isVisible:true,
+        type: 'Course',
+        language: [CPPLogo],
+        iconBackground: `#4881bf`,
+        progress: 0.15,
+        progressStatus: 'In Progress',
+        platform:[WindowsLogo],
+        techs:[DXLogo,VSLogo],
+        store:'https://www.udemy.com/course/advanced-game-programming-with-directx-11/',
+        images: [DXCourse1,DXCourse2,DXCourse3,DXCourse4,DXCourse5,DXCourse6,DXCourse7],
+      },
+    {
+        title: 'Focus Kingdom',
+        logo: FKLogo,
+        desc: 'Focus kingdom is such an amazing place for people who stuggle to concentrate! \
+        The creation of this app is focused on gamify users study/work as a real-time strategy game.\
+        With this attitude, users will be motivated for work more at their own tasks to add these gorgeous buildings to their virtual world.\
+        The project has been completed and waiting to be published in google store',
+        date: '2023-2024',
+        isVisible:true,
+        type: 'App',
+        language: [JLogo, JSLogo],
+        iconBackground: `linear-gradient(to right,${'#F2B40C'},90%,${'#EDCE24'})`,
+        progress: 0.9,
+        progressStatus: 'In progress',
+        platform:[AndroidLogo, AppleLogo],
+        techs:[ASLogo,LibGDXLogo,MYLogo,NodeLogo],
+        git:'https://github.com/CanReader/FocusKingdomServer',
+        store:'https://play.google.com/store/apps/details?id=com.focus.kingdom.release',
+        images: [FKAd1,FKAd2,FKAd3,FKAd4],
+      },
     {
         title: 'DXCraft',
         logo: DXCraftLogo,
@@ -100,8 +155,8 @@ const projects = [
         type: 'Game',
         language: [CPPLogo],
         iconBackground: `#4881bf`,
-        progress: 0.1,
-        progressStatus: 'Completed',
+        progress: 0.02,
+        progressStatus: 'Not started',
         platform:[WindowsLogo],
         techs:[DXLogo,VSLogo,'https://www.cdnlogo.com/logos/m/40/microsoft-xna.svg'],
         git:'https://github.com/CanReader/DXCraft',
@@ -134,7 +189,7 @@ const projects = [
         type: 'Application',
         language: [CSLogo],
         iconBackground: `#8969af`,
-        progress: 0.95,
+        progress: 1.0,
         progressStatus: 'Completed',
         platform:[WindowsLogo],
         techs:[WPFLogo,VSLogo,PSQL],
@@ -245,6 +300,14 @@ const ProjectSection = () => {
         : <></>
     };
 
+    const documentButton = (link) => {
+        return link ? 
+        <Button variant="contained" style={{marginTop:'2vh',marginRight:5,fontSize:5}} href={link}>
+            Get design document
+            </Button> 
+        : <></>
+    };
+
     return (
         <section className=" sm:px-8 py-[80px]" id="projects">
             <motion.div
@@ -312,6 +375,7 @@ const ProjectSection = () => {
 
                         {repoButton(project.git)}
                         {storeButton(project.store)}
+                        {documentButton(project.designdoc)}
                 </div>
               </VerticalTimelineElement>
 
