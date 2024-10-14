@@ -286,7 +286,7 @@ const ProjectSection = () => {
 
     const repoButton = (link) => {
     return link ? 
-        <Button variant="contained" style={{marginTop:'2vh',marginRight:5,fontSize:5}} href={link}>
+        <Button variant="contained" style={{marginTop:'2vh',marginRight:5,fontSize:8}} href={link}>
             To git repository
             </Button> 
         : <></>
@@ -294,7 +294,7 @@ const ProjectSection = () => {
 
     const storeButton = (link) => {
     return link ? 
-        <Button variant="contained" style={{marginTop:'2vh',marginRight:5,fontSize:5}} href={link}>
+        <Button variant="contained" style={{marginTop:'2vh',marginRight:5,fontSize:8}} href={link}>
             Get Store
             </Button> 
         : <></>
@@ -302,7 +302,7 @@ const ProjectSection = () => {
 
     const documentButton = (link) => {
         return link ? 
-        <Button variant="contained" style={{marginTop:'2vh',marginRight:5,fontSize:5}} href={link}>
+        <Button variant="contained" style={{marginTop:'2vh',marginRight:5,fontSize:8}} href={link}>
             Get design document
             </Button> 
         : <></>
