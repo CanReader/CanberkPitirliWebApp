@@ -1,10 +1,10 @@
 import "./App.css";
-import Profile from "./components/Profile";
-import Navbar from "./components/Navbar";
-import About from "./components/About";
-import Skills from "./components/Skills";
-import Projects from "./components/Projects";
-import Contact from "./components/Contact";
+import Profile from "./Components/Profile";
+import Navbar from "./Components/Navbar";
+import About from "./Components/About";
+import Skills from "./Components/Skills";
+import Projects from "./Components/Projects";
+import Contact from "./Components/Contact";
 
 export default function App() {
     return (

@@ -3,12 +3,6 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import {
     Link as ScrollLink,
-    Button,
-    Element,
-    Events,
-    animateScroll as scroll,
-    scrollSpy,
-    scroller,
 } from "react-scroll";
 import { Suspense } from "react";
 

@@ -1,20 +1,10 @@
 import { BsLinkedin, BsGithub, BsTwitterX, BsStackOverflow } from "react-icons/bs";
-import { HiMailOpen } from "react-icons/hi";
 import { AiFillCloseCircle } from "react-icons/ai";
 import { SiEbox } from "react-icons/si";
-import { BsMoon, BsSun } from "react-icons/bs";
-import { Link } from "react-router-dom";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import * as Scroll from "react-scroll";
 import {
     Link as ScrollLink,
-    Button,
-    Element,
-    Events,
-    animateScroll as scroll,
-    scrollSpy,
-    scroller,
 } from "react-scroll";
 
 export const MenuItems = [

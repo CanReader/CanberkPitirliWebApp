@@ -28,7 +28,7 @@ import FKAd3 from '/images/FK_Ad3.png';
 import FKAd4 from '/images/FK_Ad4.png';
 
 //DXCraft images
-import DXCraftLogo from '../../public/images/DXCraft Logo.png';
+import DXCraftLogo from '/images/DXCraft Logo.png';
 import DXCraft1 from '/images/DXCraft1.png';
 import DXCraft2 from '/images/DXCraft2.png';
 import DXCraft3 from '/images/DXCraft3.png';
@@ -53,31 +53,31 @@ import Rubycafe1 from '/images/Rubycafe1.png';
 import Rubycafe2 from '/images/Rubycafe2.png';
 
 //Programming languages
-import CPPLogo from '../../public/images/Cpp Logo.svg';
-import CSLogo from '../../public/images/Cs Logo.svg';
-import JLogo from '../../public/images/Java Logo.svg';
-import JSLogo from '../../public/images/JS Logo.svg';
+import CPPLogo from '/images/Cpp Logo.svg';
+import CSLogo from '/images/Cs Logo.svg';
+import JLogo from '/images/Java Logo.svg';
+import JSLogo from '/images/JS Logo.svg';
 
 //Operating systems
-import WindowsLogo from '../../public/images/Windows Logo.svg';
-import AndroidLogo from '../../public/images/Android Logo.svg';
-import AppleLogo from '../../public/images/Apple Logo.svg';
+import WindowsLogo from '/images/Windows Logo.svg';
+import AndroidLogo from '/images/Android Logo.svg';
+import AppleLogo from '/images/Apple Logo.svg';
 
 //Technologies
-import GLLogo from '../../public/images/GL Logo.svg';
-import DXLogo from '../../public/images/DirectX Logo.svg';
-import UELogo from '../../public/images/UE Logo.svg';
-import UELogo2 from '../../public/images/UE Logo2.svg';
-import ULogo from '../../public/images/Unity Logo.svg';
-import LibGDXLogo from '../../public/images/LibGDX Logo.svg';
-import NodeLogo from '../../public/images/Node Logo.svg';
-import WPFLogo from '../../public/images/WPF Logo.svg';
-import ASLogo from '../../public/images/AS Logo.svg';
-import VSLogo from '../../public/images/VS Logo.svg';
+import GLLogo from '/images/GL Logo.svg';
+import DXLogo from '/images/DirectX Logo.svg';
+import UELogo from '/images/UE Logo.svg';
+import UELogo2 from '/images/UE Logo2.svg';
+import ULogo from '/images/Unity Logo.svg';
+import LibGDXLogo from '/images/LibGDX Logo.svg';
+import NodeLogo from '/images/Node Logo.svg';
+import WPFLogo from '/images/WPF Logo.svg';
+import ASLogo from '/images/AS Logo.svg';
+import VSLogo from '/images/VS Logo.svg';
 
 //Databses
-import MYLogo from '../../public/images/MySQL Logo.svg';
-import PSQL from '../../public/images/PostgreSQL Logo.svg';
+import MYLogo from '/images/MySQL Logo.svg';
+import PSQL from '/images/PostgreSQL Logo.svg';
 
 import 'react-vertical-timeline-component/style.min.css';
 import "react-responsive-carousel/lib/styles/carousel.min.css";
