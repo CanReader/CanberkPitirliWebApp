@@ -6,6 +6,14 @@ import { Button } from "@mui/material";
 import { Carousel } from "react-responsive-carousel";
 import { Progress } from 'react-sweet-progress';
 
+//The Dummy Bird
+import DummyBirdLogo from '/images/DummyBirdLogo.png'
+import DummyBird1 from '/images/DummyBird1.png'
+import DummyBird2 from '/images/DummyBird2.png'
+import DummyBird3 from '/images/DummyBird3.png'
+import DummyBird4 from '/images/DummyBird4.png'
+
+
 //Rebellion images
 import Rebellion1 from '/images/Rebellion1.png'
 import Rebellion2 from '/images/Rebellion2.png'
@@ -83,8 +91,29 @@ import 'react-vertical-timeline-component/style.min.css';
 import "react-responsive-carousel/lib/styles/carousel.min.css";
 import "react-sweet-progress/lib/style.css";
 
+
 const projects = [
     {
+    title:'The Dummy Bird',
+    logo: DummyBirdLogo,
+    desc: 'A mobile game inspired by Flappy Bird but developed in stunning 3D using Unreal Engine 5. \
+    Dive into a vibrant and challenging world where players guide Dummy Bird through a series of intricate obstacles and perilous paths.\
+    The game features advanced physics, dynamic lighting, and beautifully rendered environments that elevate the classic gameplay to new heights. \
+    With smooth controls and immersive graphics, Dummy Bird offers a refreshing and engaging experience for both casual gamers and hardcore fans of the genre.\
+    Can you keep Dummy Bird soaring high, or will you be grounded by the tricky traps and hazards that lie ahead?',
+    date: '2024-2024',
+    isVisible:true,
+    type: 'Game',
+    language: [CPPLogo],
+    iconBackground: '#4881bf',
+    progress:0.78,
+    progressStatus: 'In Progress',
+    platform: [AndroidLogo,AppleLogo],
+    techs: [UELogo],
+    store:'https://play.google.com/store/apps/details?id=com.sleaksoft.dummybird.release',
+    images: [DummyBird1,DummyBird2,DummyBird3,DummyBird4]
+  },
+{
       title: 'Rebellion',
       desc: 'Rebellion is a fast-paced, third-person shooter pitting rival factions, Special Forces and Rebels,\
        in intense 5v5 battles. Players select unique characters with distinct abilities.\
@@ -92,7 +121,7 @@ const projects = [
        destructible environments.\
        The project still work in progress, therefore buttons in bellow may not work',
       date: '2024-2025',
-      isVisible:true,
+      isVisible:false,
       type: 'Game',
       language: [CPPLogo],
       iconBackground: `#4881bf`,
@@ -111,7 +140,8 @@ const projects = [
         building a solid foundation for crafting immersive and visually stunning game worlds. \
         From the fundamentals of DirectX 11 to advanced rendering techniques, you'll gain the expertise to bring your \
         game ideas to life.\
-        The project will be released in 12 october, therefore buttons in bellow may not work`,
+        Maintainment of the course has been stopped due to my mantatory millitary service and hidden in udemy but it will be continued \
+        when I come back from millitary!`,
         date: '2024-2024',
         isVisible:true,
         type: 'Course',
@@ -150,8 +180,8 @@ const projects = [
         desc: `This is a small-scale Minecraft-inspired project developed as a learning exercise using C++ and DirectX. Its primary purpose is to explore 3D graphics programming concepts, world generation, and game engine fundamentals.\
          While it features basic block-based gameplay, it lacks the depth and complexity of a full-fledged game. \
          Images are used as representation from original java Minecraft. Images of the game will be added soon...`,
-        date: '2022',
-        isVisible:true,
+        date: '2022-2023',
+        isVisible:false,
         type: 'Game',
         language: [CPPLogo],
         iconBackground: `#4881bf`,
@@ -329,6 +359,8 @@ const ProjectSection = () => {
 
         {
           projects.map((project,index) => {
+            if(!project.isVisible)
+              return <></>;
             return (
 
               <VerticalTimelineElement
