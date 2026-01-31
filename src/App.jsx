@@ -7,16 +7,16 @@ import Projects from "./Components/Projects";
 import Contact from "./Components/Contact";
 
 export default function App() {
-    return (
-        <>
-            <Navbar />
-            <main className=" bg-bgDark text-textWhite px-5 md:px-8">
-                <Profile/>
-                <About/>
-                <Skills/>
-                <Projects/>
-                <Contact/>
-            </main>
-        </>
-    );
+  return (
+    <>
+      <Navbar />
+      <main className="bg-bgDark text-textWhite px-5 md:px-8">
+        <Profile />
+        <About />
+        <Skills />
+        <Projects />
+        <Contact />
+      </main>
+    </>
+  );
 }

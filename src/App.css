@@ -7,3 +7,17 @@
     color: white;
 }
 
+#tsparticles {
+    pointer-events: none;
+}
+
+/* If using react-progress-2 */
+.node-progress-label {
+    color: #BDBDBD !important; /* Forces the text to be Gray */
+    font-weight: bold;
+}
+
+/* If using a generic div-based bar */
+.progress-container span {
+    color: #BDBDBD;
+}
