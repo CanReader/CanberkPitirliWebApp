@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { Glow, GlowCapture } from "@codaworks/react-glow";
 import { Grid } from "@mui/material";
 import { Progress } from 'react-sweet-progress';
+import Naming from './Naming';
 
 import CSLogo from './../../public/images/Cs Logo.svg';
 import CPPLogo from './../../public/images/Cpp Logo.svg';
@@ -11,143 +12,185 @@ import JSLogo from './../../public/images/JS Logo.svg';
 import UELogo from './../../public/images/UE Logo2.svg';
 import PLogo from './../../public/images/Python Logo.svg';
 import ULogo from './../../public/images/Unity Logo.svg';
+import RustLogo from './../../public/images/RustLogo1.svg';
 
 const Skills = [
     {
         name:'C#',
         image:CSLogo,
-        description:'The programming language I firstly learned with thinking about game development. After years I worked on commercial projects and made a udemy course about WPF framework',
+        description:'The first programming language I learned with a game development mindset. Over the years, I worked on commercial projects and even created a Udemy course focused on the WPF framework and real-world application development.',
         color:'#967AB8',
-        progress : 0.80
+        progress : 0.80,
+        type:'Language',
+        isVisible:true
     },
     
     {
         name:'C++',
         image:CPPLogo,
-        description:'The programming language mostly I use and specialize in the most. My journey started with UE4, creating my own game engine and more...',
+        description:'The programming language I use and specialize in the most. My journey started with Unreal Engine 4 and continued with developing my own game engine, low-level systems, graphics programming, and performance-critical software.',
         color:'#669AD2',
-        progress : 0.95
+        progress : 0.95,
+        type:'Language',
+        isVisible:true
     },
-    
+
+    {
+        name:'Rust',
+        image:RustLogo,
+        description:'I am actively and passionately learning Rust with a strong focus on systems programming. I’m drawn to its strict ownership model, memory safety guarantees, and zero-cost abstractions, applying it to low-level and performance-critical systems.',
+        color:'#C84409',
+        progress : 0.25,
+        type:'Language',
+        isVisible:true
+    },
+
     {
         name:'Java',
         image:JLogo,
-        description:'The programming language  where I learned details about OOP paradigm. My first interest started with coding Minecraft plugins/mods. I took it even further with mobile programming ',
+        description:'The language where I learned the fundamentals of object-oriented programming in depth. My interest started with developing Minecraft plugins and mods, and later expanded into mobile application development and larger-scale projects.',
         color:'#F89921',
-        progress : 0.85
+        progress : 0.85,
+        type:'Language',
+        isVisible:true
     },
     
     {
         name:'Unreal Engine 5',
         image:UELogo,
-        description:'Unreal Engine is my actual area of expertise. I’ve used more than 3 years and thus I continue my career on this game engine ',
+        description:'Unreal Engine is my primary area of expertise. I have over three years of hands-on experience and continue to build my professional career around Unreal Engine, focusing on gameplay systems, performance, and engine-level understanding.',
         color:'red',
-        progress: 0.97
+        progress: 0.97,
+        type:'Game Engine',
+        isVisible:true
     },
     
     {
         name:'Python',
         image:PLogo,
-        description:'I firstly started python for get started with Artificial Intelligence with TensorFlow, Numpy, Pandas, SciPy libraries and still learning...',
+        description:'I started Python while exploring artificial intelligence and data processing. I have worked with libraries such as TensorFlow, NumPy, Pandas, and SciPy, and I continue to use Python for experimentation, tooling, and learning.',
         color:'#01CE6A',
-        progress: 0.79
+        progress: 0.79,
+        type:'Language',
+        isVisible:true
     },
     
     {
         name:'Javascript',
         image:JSLogo,
-        description:'One of my biggest regrets is to get started with Javascript too late. In 2023, I realized how amazing language it is. I used NodeJS, React, Bootstrap frameworks',
+        description:'One of my biggest regrets is starting JavaScript later than I should have. In 2023, I realized how powerful and versatile it is, using it with Node.js, React, and Bootstrap to build modern, interactive web applications.',
         color:'#FEDE21',
-        progress: 0.75
+        progress: 0.75,
+        type:'Language',
+        isVisible:true
     },
     
     {
         name:'Unity',
         image:ULogo,
-        description:'Unity is my first interaction with both software and game development. Unfortunately because I passed to UE4, I gave a long break of using Unity but still I use unity to develop hyper casual projects',
+        description:'Unity was my first interaction with both software and game development. Although I later switched to Unreal Engine, I still use Unity occasionally to develop hyper-casual projects and rapid prototypes.',
         color:'#818181',
-        progress: 0.45
-    }
+        progress: 0.45,
+        type:'Game Engine',
+        isVisible:true
+    },
 ];
 
 const SkillSection = () => {
-    const refHeading = useRef(null);
-    const inViewHeading = useInView(refHeading);
-
-    const refContent = useRef(null);
-    const inViewContent = useInView(refContent);
-
     const variants1 = {
         initial: { opacity: 0, y: 50 },
         animate: { opacity: 1, y: 0 },
     };
 
-    return (
-        <section className=" sm:px-8 py-[80px]" id="skills">
-            <motion.div
-                ref={refHeading}
-                variants={variants1}
-                initial="initial"
-                animate={inViewHeading ? "animate" : "initial"}
-                transition={{ duration: 0.6 }}
-                className="flex gap-4 items-center mb-10"
-            >
-                <h3 className="text-textWhite text-3xl sm:text-5xl font-[800]">
-                    Skills
-                </h3>
-                <div className="min-w-0 flex-grow mt-2 h-[4px] bg-textWhite"></div>
-            </motion.div>
+    // Group skills by type
+    const groupedSkills = Skills.reduce((acc, skill) => {
+        if (!acc[skill.type]) {
+            acc[skill.type] = [];
+        }
+        acc[skill.type].push(skill);
+        return acc;
+    }, {});
 
-            <GlowCapture>
-                <Grid container gap='10%' justifyContent={'center'}>
-                    {
-                        Skills.map((skill, i) => (
-                            <Glow key={i} color={skill.color}>
-                                <Grid item>
-                                <motion.div
-                                ref={refContent}
-                                initial={{ opacity: 0}}
-                                animate={
-                                    { opacity: 1}
-                                }
-                                transition={{ duration: 0.8 }}
-                                className="border border-border rounded-2xl px-5 py-4 glow:ring-1 glow:border-glow glow:ring-glow glow:bg-glow/[.15]"
-                                    style={{
-                                        display:'flex',
-                                        flexDirection:'column',
-                                        width: '300px',
-                                        minHeight:'380px',
-                                        marginBottom:'20%',
-                                        textAlign:'center'
-                                    }}>
-                                        <img src={skill.image} loading="eager" style={{width:'25%',marginLeft:'auto',marginRight:'auto',marginBottom:10}}/>
-                                        <h1 style={{fontSize:'1.2em'}}>{skill.name}</h1>
-                                        <p style={{fontFamily:'ui-sans-serif',marginRight:10,marginLeft:10}}>{skill.description}</p>
-                                        <Progress style={{marginTop:'auto'}} percent={skill.progress*100} status='success'
-                                        theme={{
-                                            success: {
-                                                symbol: 
-                                                skill.progress > 0.95 ? '❤️‍🔥' 
-                                                : skill.progress > 0.9 ? '😍' 
-                                                : skill.progress > 0.8 ? '🤓'
+    // Define the order and display names for categories
+    const categories = [
+        { key: 'Language', title: 'Programming Languages' },
+        { key: 'Game Engine', title: 'Game Engines' },
+        { key: 'Framework', title: 'Frameworks' },
+    ];
+
+    const SkillCard = ({ skill, index }) => (
+        <Glow key={index} color={skill.color}>
+            <Grid item>
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    viewport={{ once: true, margin: "-100px" }}
+                    transition={{ duration: 0.8 }}
+                    className="border border-border rounded-2xl px-5 py-4 glow:ring-1 glow:border-glow glow:ring-glow glow:bg-glow/[.15]"
+                    style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        width: '300px',
+                        minHeight: '380px',
+                        marginBottom: '20%',
+                        textAlign: 'center'
+                    }}>
+                    <img src={skill.image} loading="eager" style={{ height: '70px', marginLeft: 'auto', marginRight: 'auto', marginBottom: 10 }} />
+                    <h1 style={{ fontSize: '1.2em', fontWeight:'600' }}>{skill.name}</h1>
+                    <p style={{ fontFamily: 'ui-sans-serif', marginRight: 10, marginLeft: 10, fontSize:'0.88em' }}>{skill.description}</p>
+                    <Progress style={{ marginTop: 'auto' }} percent={skill.progress * 100} status='success'
+                        theme={{
+                            success: {
+                                symbol:
+                                    skill.progress > 0.95 ? '❤️‍🔥'
+                                        : skill.progress > 0.9 ? '😍'
+                                            : skill.progress > 0.8 ? '🤓'
                                                 : skill.progress > 0.7 ? '🙂'
-                                                : skill.progress > 0.6 ? '😐'
-                                                : skill.progress > 0.4 ? '😒'
-                                                : skill.progress > 0.3 ? '🙈'
-                                                : skill.progress > 0.2 ? '😥'
-                                                : '😭',
-                                                color: skill.color
-                                            }}}
-                                            />
-                                </motion.div>
-                                </Grid>
-                            </Glow>
-                        )
-                        )
-                    }
-                </Grid>
-            </GlowCapture>
+                                                    : skill.progress > 0.6 ? '😐'
+                                                        : skill.progress > 0.4 ? '😒'
+                                                            : skill.progress > 0.3 ? '🙈'
+                                                                : skill.progress > 0.2 ? '😥'
+                                                                    : '😭',
+                                color: skill.color
+                            }
+                        }}
+                    />
+                </motion.div>
+            </Grid>
+        </Glow>
+    );
 
+    // Create a component for category naming with its own ref
+    const CategoryNaming = ({ text, type }) => {
+        const ref = useRef(null);
+        const inView = useInView(ref, { once: true, margin: "-100px" });
+        
+        return <Naming text={text} ref={ref} variants={variants1} inViewHeading={inView} type={type} />;
+    };
+
+    return (
+        <section className="sm:px-8 py-[2px]" id="skills">
+            <GlowCapture>
+                <CategoryNaming text="Skills" type={1} />
+                
+                {categories.map((category) => {
+                    const categorySkills = groupedSkills[category.key];
+                    
+                    // Only render the category if there are skills for it
+                    if (!categorySkills || categorySkills.length === 0) return null;
+                    
+                    return (
+                        <div key={category.key} style={{ marginBottom: '30px' }}>
+                            <CategoryNaming text={category.title} type={2} />
+                            <Grid container gap='10%' justifyContent={'center'}>
+                                {categorySkills.map((skill, i) => (
+                                    <SkillCard key={i} skill={skill} index={i} />
+                                ))}
+                            </Grid>
+                        </div>
+                    );
+                })}
+            </GlowCapture>
         </section>
     );
 };
