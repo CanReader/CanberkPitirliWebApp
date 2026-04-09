@@ -81,12 +81,26 @@ const About = () => {
                 <motion.div
                     initial={{ opacity: 0, x: 100, scale: 0.8 }}
                     animate={inViewContent ? { opacity: 1, x: 0, scale: 1 } : {}}
-                    transition={{ duration: 0.8 }}
+                    transition={{ duration: 0.8, delay: 0.2 }}
                     className="flex-1 flex items-center justify-center"
                 >
                     <p className="text-textWhite p-4 text-lg sm:text-xl sm:leading-7 text-center md:mt-[12%]">
-                        <span className="font-bold block mb-2">Hello there, that's Canberk.</span>
-                        {text}
+                        <motion.span
+                            className="font-bold block mb-2"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={inViewContent ? { opacity: 1, y: 0 } : {}}
+                            transition={{ duration: 0.5, delay: 0.4 }}
+                        >
+                            Hello there, that's Canberk.
+                        </motion.span>
+                        <motion.span
+                            className="block"
+                            initial={{ opacity: 0 }}
+                            animate={inViewContent ? { opacity: 1 } : {}}
+                            transition={{ duration: 0.8, delay: 0.6 }}
+                        >
+                            {text}
+                        </motion.span>
                     </p>
                 </motion.div>
             </div>
