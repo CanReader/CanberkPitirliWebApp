@@ -68,11 +68,13 @@ import JLogo from '/images/Java Logo.svg';
 import JSLogo from '/images/JS Logo.svg';
 import PythonLogo from '/images/Python Logo.svg';
 import RustLogo from '/images/RustLogo1.svg';
+import GoLogo from '/images/GoLogo.svg';
 
 //Operating systems
 import WindowsLogo from '/images/Windows Logo.svg';
 import AndroidLogo from '/images/Android Logo.svg';
 import AppleLogo from '/images/Apple Logo.svg';
+import LinuxLogo from '/images/Linux Logo.svg';
 
 //Technologies
 import GLLogo from '/images/GL Logo.svg';
@@ -411,7 +413,7 @@ const projects = [
         title: 'DX11 Terrain Tessellator Demo',
         desc: 'A technical demonstration of hardware tessellation using DirectX 11, showcasing dynamic level-of-detail (LOD) terrain rendering. Implements the tessellation pipeline with hull and domain shaders to generate high-resolution terrain geometry on the GPU in real-time. Features adaptive tessellation based on camera distance, displacement mapping for realistic surface detail, and optimized rendering for large-scale environments. Demonstrates advanced graphics programming techniques essential for modern game engines and demonstrates the power of GPU-accelerated geometry generation.',
         date: '2024',
-        isVisible: true,
+        isVisible: false,
         categories: ['Game Development'],
         type: 'Graphics Demo',
         language: [CPPLogo],
@@ -425,6 +427,132 @@ const projects = [
         images: ['https://opengraph.githubassets.com/1/CanReader/DX11-TerrainTesellatorDemo'],
         preview: 'https://opengraph.githubassets.com/1/CanReader/DX11-TerrainTesellatorDemo'
     },
+    {
+        title: 'ASCIIRenderer',
+        desc: 'A real-time 3D software rasterizer built from scratch in Rust that streams rendered frames as ASCII art to the browser over WebSocket. Implements perspective projection, z-buffering, barycentric interpolation, and Blinn-Phong shading entirely on the CPU. Features 7 shading modes, 6 character sets, 6 color profiles, OBJ/glTF/GLB/FBX model loading, per-character RGB texture rendering on HTML5 Canvas, drag-to-rotate camera controls, and a live control panel. The Axum backend serves the Vite-built React frontend as a single binary, making deployment seamless.',
+        date: '2026',
+        isVisible: true,
+        categories: ['Graphics', 'Full Stack'],
+        type: 'Software Rasterizer',
+        language: [RustLogo, JSLogo],
+        languageNames: ['Rust', 'JavaScript'],
+        iconBackground: '#C84409',
+        progress: 1,
+        progressStatus: 'Completed',
+        platform: [WindowsLogo, LinuxLogo],
+        techs: [],
+        git: 'https://github.com/CanReader/ASCIIRenderer',
+        images: ['https://socialify.git.ci/CanReader/ASCIIRenderer/image?description=1&font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&pulls=1&stargazers=1&theme=Light'],
+        preview: 'https://socialify.git.ci/CanReader/ASCIIRenderer/image?description=1&font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&pulls=1&stargazers=1&theme=Light'
+    },
+    {
+        title: 'raft-kv',
+        desc: 'A distributed key-value store built from scratch in Rust implementing the Raft consensus algorithm. Features leader election with randomized timeouts and pre-vote protocol, log replication with fast term-skipping backtracking, automatic snapshotting and log compaction via chunked InstallSnapshot RPC, and durable RocksDB-backed state persistence. Architected as a 5-crate workspace separating core logic, storage, transport, server, and client concerns. The pure Raft core has zero I/O dependencies, enabling deterministic testability. Supports a 3-node cluster with a CLI client for get, put, delete, status, and benchmark commands.',
+        date: '2026',
+        isVisible: true,
+        categories: ['Backend', 'Distributed Systems'],
+        type: 'Distributed System',
+        language: [RustLogo],
+        languageNames: ['Rust'],
+        iconBackground: '#C84409',
+        progress: 1,
+        progressStatus: 'Completed',
+        platform: [WindowsLogo, LinuxLogo],
+        techs: [],
+        git: 'https://github.com/CanReader/raft-kv',
+        images: ['https://socialify.git.ci/CanReader/raft-kv/image?description=1&font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&pulls=1&stargazers=1&theme=Light'],
+        preview: 'https://socialify.git.ci/CanReader/raft-kv/image?description=1&font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&pulls=1&stargazers=1&theme=Light'
+    },
+    {
+        title: 'brew-focus',
+        desc: 'A coffee-themed Pomodoro timer desktop application built with Tauri 2 and React. Features configurable work and break phase cycles, a fullscreen focus overlay to minimize distractions, drag-and-drop task management with project grouping, and daily focus time tracking. Includes system tray support for background operation, 6 accent color themes, and full offline capability with local JSON storage. Cross-platform across macOS, Windows, and Linux.',
+        date: '2026',
+        isVisible: true,
+        categories: ['Desktop Application', 'Full Stack'],
+        type: 'Desktop App',
+        language: [RustLogo, JSLogo],
+        languageNames: ['Rust', 'JavaScript'],
+        iconBackground: '#6F4E37',
+        progress: 1,
+        progressStatus: 'Completed',
+        platform: [WindowsLogo, LinuxLogo, AppleLogo],
+        techs: [],
+        git: 'https://github.com/CanReader/brew-focus',
+        images: ['https://socialify.git.ci/CanReader/brew-focus/image?description=1&font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&pulls=1&stargazers=1&theme=Light'],
+        preview: 'https://socialify.git.ci/CanReader/brew-focus/image?description=1&font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&pulls=1&stargazers=1&theme=Light'
+    },
+    {
+        title: 'FastNN',
+        desc: 'A high-performance deep learning framework built from scratch in Rust with hand-tuned CUDA kernels. Features a dual CPU/GPU architecture with automatic device dispatch, tape-based reverse-mode automatic differentiation, cuBLAS SGEMM with TF32 tensor core acceleration, and RAII-based GPU memory management. Includes dense, conv2d, LSTM, GRU, multi-head attention, Transformer encoder, embedding, batch/layer/RMS normalization, dropout, and pooling layers. Supports SGD, Adam, and AdamW optimizers with cosine, warmup, and OneCycleLR schedulers. Compatible with Volta through Hopper GPU architectures.',
+        date: '2025-2026',
+        isVisible: true,
+        categories: ['AI/ML'],
+        type: 'Deep Learning Framework',
+        language: [RustLogo],
+        languageNames: ['Rust'],
+        iconBackground: '#C84409',
+        progress: 1,
+        progressStatus: 'Completed',
+        platform: [WindowsLogo, LinuxLogo],
+        techs: [],
+        git: 'https://github.com/CanReader/FastNN',
+        images: ['https://socialify.git.ci/CanReader/FastNN/image?description=1&font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&pulls=1&stargazers=1&theme=Light'],
+        preview: 'https://socialify.git.ci/CanReader/FastNN/image?description=1&font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&pulls=1&stargazers=1&theme=Light'
+    },
+    {
+        title: 'ZipRS',
+        desc: 'A fast, modern desktop archive manager inspired by WinRAR, built with Rust, Tauri v2, and Svelte 5. Supports ZIP, TAR, TAR.GZ, TAR.BZ2, and TAR.ZST formats with full browse, extract, add, delete, create, and test operations. Features a polished GUI with drag-and-drop, sortable file tables, real-time progress tracking, keyboard shortcuts, and a dark theme. Includes a powerful CLI with 15 subcommands including convert, diff, stats, and tree views for advanced archive management workflows.',
+        date: '2026',
+        isVisible: true,
+        categories: ['Desktop Application', 'CLI/TUI'],
+        type: 'Desktop App',
+        language: [RustLogo, JSLogo],
+        languageNames: ['Rust', 'JavaScript'],
+        iconBackground: '#C84409',
+        progress: 1,
+        progressStatus: 'Completed',
+        platform: [WindowsLogo, LinuxLogo, AppleLogo],
+        techs: [],
+        git: 'https://github.com/CanReader/ZipRS',
+        images: ['https://socialify.git.ci/CanReader/ZipRS/image?description=1&font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&pulls=1&stargazers=1&theme=Light'],
+        preview: 'https://socialify.git.ci/CanReader/ZipRS/image?description=1&font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&pulls=1&stargazers=1&theme=Light'
+    },
+    {
+        title: 'ViewCam',
+        desc: 'A cross-platform solution that transforms an Android phone camera into a virtual webcam for desktop users. The mobile component captures the camera feed using CameraX and streams it over Wi-Fi, while the desktop receiver creates a virtual camera device via v4l2loopback on Linux. Built with a Qt 6 desktop client and a Jetpack Compose Android app, providing a seamless wireless webcam experience for users without a physical webcam.',
+        date: '2023-2026',
+        isVisible: true,
+        categories: ['Mobile', 'Desktop Application'],
+        type: 'Utility App',
+        language: [CPPLogo, JLogo],
+        languageNames: ['C++', 'Java'],
+        iconBackground: '#4881bf',
+        progress: 1,
+        progressStatus: 'Completed',
+        platform: [AndroidLogo, LinuxLogo, WindowsLogo],
+        techs: [],
+        git: 'https://github.com/CanReader/ViewCam',
+        images: ['https://socialify.git.ci/CanReader/ViewCam/image?description=1&font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&pulls=1&stargazers=1&theme=Light'],
+        preview: 'https://socialify.git.ci/CanReader/ViewCam/image?description=1&font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&pulls=1&stargazers=1&theme=Light'
+    },
+    {
+        title: 'GoChat',
+        desc: 'A multi-platform real-time chat application featuring a Go WebSocket server, a Rust TUI client, and an Android client. The server handles JWT authentication, PostgreSQL persistence for users, rooms, and messages, real-time broadcasting, typing indicators, presence tracking, and rate limiting. The Rust TUI client uses ratatui with keyboard-driven navigation for a polished terminal experience. The Android client is built with Jetpack Compose, MVVM architecture, and OkHttp WebSocket with exponential backoff reconnection.',
+        date: '2026',
+        isVisible: true,
+        categories: ['Backend', 'Full Stack', 'Mobile'],
+        type: 'Chat Application',
+        language: [GoLogo, RustLogo],
+        languageNames: ['Go', 'Rust'],
+        iconBackground: '#00ADD8',
+        progress: 1,
+        progressStatus: 'Completed',
+        platform: [WindowsLogo, LinuxLogo, AndroidLogo],
+        techs: [PSQL],
+        git: 'https://github.com/CanReader/GoChat',
+        images: ['https://socialify.git.ci/CanReader/GoChat/image?description=1&font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&pulls=1&stargazers=1&theme=Light'],
+        preview: 'https://socialify.git.ci/CanReader/GoChat/image?description=1&font=Jost&forks=1&issues=1&language=1&name=1&owner=1&pattern=Solid&pulls=1&stargazers=1&theme=Light'
+    },
 ];
 
 // Programming language data
@@ -435,6 +563,7 @@ const programmingLanguages = [
     { name: 'JavaScript', logo: JSLogo },
     { name: 'Python', logo: PythonLogo },
     { name: 'Rust', logo: RustLogo },
+    { name: 'Go', logo: GoLogo },
 ];
 
 // Custom hook for filtering projects with multiple categories support and language filter
