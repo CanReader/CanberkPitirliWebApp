@@ -13,6 +13,7 @@ import UELogo from './../../public/images/UE Logo2.svg';
 import PLogo from './../../public/images/Python Logo.svg';
 import ULogo from './../../public/images/Unity Logo.svg';
 import RustLogo from './../../public/images/RustLogo1.svg';
+import GoLogo from './../../public/images/GoLogo.svg';
 
 const Skills = [
     {
@@ -43,6 +44,17 @@ const Skills = [
         progress : 0.25,
         type:'Language',
         isVisible:true
+    },
+
+    {
+      name:'Go',
+      image:GoLogo,
+description: 'The language I picked up driven by professional necessity and quickly grew to appreciate. I am drawn to its simplicity, fast compilation, and built-in concurrency model. I am actively applying it to backend and networked systems, expanding my perspective beyond systems programming into server-side development.',
+      color:'#69bad9',
+      progress:0.75,
+      type:'Language',
+      isVisible:true
+      
     },
 
     {
