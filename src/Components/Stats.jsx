@@ -40,9 +40,10 @@ const Stats = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.6 }}
-                className="overflow-x-auto"
+                className="max-w-4xl mx-auto"
             >
-                <div className="flex justify-between items-stretch min-w-[700px] max-w-4xl mx-auto">
+                {/* Desktop: horizontal row */}
+                <div className="hidden md:flex justify-between items-stretch">
                     {stats.map((stat, i) => (
                         <motion.div
                             key={stat.label}
@@ -58,10 +59,30 @@ const Stats = () => {
                             <span className="text-textLight text-sm font-[500]">
                                 {stat.label}
                             </span>
-
                             {i < stats.length - 1 && (
                                 <div className="absolute right-0 top-1/2 -translate-y-1/2 w-px h-12 bg-white/10" />
                             )}
+                        </motion.div>
+                    ))}
+                </div>
+
+                {/* Mobile: 2x3 grid */}
+                <div className="grid grid-cols-2 gap-y-8 gap-x-4 md:hidden">
+                    {stats.map((stat, i) => (
+                        <motion.div
+                            key={stat.label}
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={inView ? { opacity: 1, y: 0 } : {}}
+                            transition={{ duration: 0.4, delay: i * 0.1 }}
+                            className="flex flex-col items-center text-center"
+                        >
+                            <div className="text-heading text-3xl font-[900] tabular-nums mb-2">
+                                <CountUp target={stat.value} suffix={stat.suffix} inView={inView} />
+                            </div>
+                            <div className="w-8 h-[2px] bg-heading/30 mb-2" />
+                            <span className="text-textLight text-sm font-[500]">
+                                {stat.label}
+                            </span>
                         </motion.div>
                     ))}
                 </div>
