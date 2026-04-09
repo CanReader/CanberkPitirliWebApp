@@ -105,51 +105,28 @@ const Contact = () => {
                         I&apos;ll try my best to get back to you!
                     </p>
                     <div className="flex flex-row gap-5 mt-6">
-                        <a
-                            href="https://github.com/CanReader"
-                            className="relative group hover:-translate-y-[2px] transition-all duration-500 ease-in-out "
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            <img src={github} style={{height:30}} />
-                            <span className="text-textLight text-xs px-2 opacity-0 group-hover:opacity-100 absolute top-10 -left-3 w-fit">
-                                Github
-                            </span>
-                        </a>
-                        <a
-                            href="https://www.linkedin.com/in/bereader"
-                            className="relative group hover:-translate-y-[2px] transition-all duration-500 ease-in-out "
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            <img src={linkedin} alt="Linkedin Icon" style={{height:30}}/>
-                            <span className="text-textLight text-xs px-2 opacity-0 group-hover:opacity-100 absolute top-10 -left-4 w-fit">
-                                Linkedin
-                            </span>
-                        </a>
-                        <a
-                            href="https://x.com/can_reader"
-                            className="relative group hover:-translate-y-[2px] transition-all duration-500 ease-in-out "
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            <img src={twitter} alt="twitter Icon" style={{height:30}}/>
-                            <span className="text-textLight text-xs px-2 opacity-0 group-hover:opacity-100 absolute top-10 -left-3 w-fit">
-                                Twitter
-                            </span>
-                        </a>
-
-                        <a
-                            href="https://www.instagram.com/canthereader/"
-                            className="relative group hover:-translate-y-[2px] transition-all duration-500 ease-in-out "
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            <img src={instagram} alt="instagram Icon" style={{height:30}} />
-                            <span className="text-textLight text-xs px-2 opacity-0 group-hover:opacity-100 absolute top-10 -left-3 w-fit">
-                                Instagram
-                            </span>
-                        </a>
+                        {[
+                            { href: "https://github.com/CanReader", icon: github, label: "Github" },
+                            { href: "https://www.linkedin.com/in/bereader", icon: linkedin, label: "Linkedin" },
+                            { href: "https://x.com/can_reader", icon: twitter, label: "Twitter" },
+                            { href: "https://www.instagram.com/canthereader/", icon: instagram, label: "Instagram" },
+                        ].map((social, i) => (
+                            <motion.a
+                                key={social.label}
+                                href={social.href}
+                                className="relative group hover:-translate-y-[2px] transition-all duration-500 ease-in-out"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={inViewContent ? { opacity: 1, y: 0 } : {}}
+                                transition={{ duration: 0.4, delay: 0.3 + i * 0.1 }}
+                            >
+                                <img src={social.icon} alt={`${social.label} Icon`} style={{height:30}} />
+                                <span className="text-textLight text-xs px-2 opacity-0 group-hover:opacity-100 absolute top-10 -left-3 w-fit">
+                                    {social.label}
+                                </span>
+                            </motion.a>
+                        ))}
                     </div>
                 </motion.div>
                 <motion.div
@@ -164,17 +141,27 @@ const Contact = () => {
                     className="mt-10 md:mt-0"
                 >
                     {show ? (
-                        <div className="mt-6 w-[80%] flex items-center">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.5 }}
+                            className="mt-6 w-[80%] flex items-center"
+                        >
                             <p className="text-md text-textPara ">
                                 Thank you for reaching out! I appreciate your
                                 interest and will get back to you as soon as
                                 possible. In the meantime, feel free to explore
                                 more of my portfolio.
                             </p>
-                        </div>
+                        </motion.div>
                     ) : (
                         <form className="flex flex-col" onSubmit={handleSubmit}>
-                            <div className="mb-6">
+                            <motion.div
+                                initial={{ opacity: 0, x: 30 }}
+                                animate={inViewContent ? { opacity: 1, x: 0 } : {}}
+                                transition={{ duration: 0.5, delay: 0.2 }}
+                                className="mb-6"
+                            >
                                 <label
                                     htmlFor="email"
                                     className="text-white block mb-2 text-sm font-medium"
@@ -188,7 +175,7 @@ const Contact = () => {
                                     required
                                     value={formData.email}
                                     onChange={handleChange}
-                                    className="bg-[#18191E] border border-[#33353F] placeholder-[#9CA2A9] text-gray-100 text-sm rounded-lg block w-full p-2.5"
+                                    className="bg-[#18191E] border border-[#33353F] placeholder-[#9CA2A9] text-gray-100 text-sm rounded-lg block w-full p-2.5 focus:border-heading focus:ring-1 focus:ring-heading transition-colors duration-300"
                                     placeholder="Mail adress"
                                 />
                                 <ValidationError
@@ -196,8 +183,13 @@ const Contact = () => {
                                     field="email"
                                     errors={state.errors}
                                 />
-                            </div>
-                            <div className="mb-6">
+                            </motion.div>
+                            <motion.div
+                                initial={{ opacity: 0, x: 30 }}
+                                animate={inViewContent ? { opacity: 1, x: 0 } : {}}
+                                transition={{ duration: 0.5, delay: 0.35 }}
+                                className="mb-6"
+                            >
                                 <label
                                     htmlFor="subject"
                                     className="text-white block text-sm mb-2 font-medium"
@@ -211,7 +203,7 @@ const Contact = () => {
                                     required
                                     value={formData.subject}
                                     onChange={handleChange}
-                                    className="bg-[#18191E] border border-[#33353F] placeholder-[#9CA2A9] text-gray-100 text-sm rounded-lg block w-full p-2.5"
+                                    className="bg-[#18191E] border border-[#33353F] placeholder-[#9CA2A9] text-gray-100 text-sm rounded-lg block w-full p-2.5 focus:border-heading focus:ring-1 focus:ring-heading transition-colors duration-300"
                                     placeholder="Just saying hi"
                                 />
                                 <ValidationError
@@ -219,8 +211,13 @@ const Contact = () => {
                                     field="subject"
                                     errors={state.errors}
                                 />
-                            </div>
-                            <div className="mb-6">
+                            </motion.div>
+                            <motion.div
+                                initial={{ opacity: 0, x: 30 }}
+                                animate={inViewContent ? { opacity: 1, x: 0 } : {}}
+                                transition={{ duration: 0.5, delay: 0.5 }}
+                                className="mb-6"
+                            >
                                 <label
                                     htmlFor="message"
                                     className="text-white block text-sm mb-2 font-medium"
@@ -232,7 +229,7 @@ const Contact = () => {
                                     id="message"
                                     value={formData.message}
                                     onChange={handleChange}
-                                    className="bg-[#18191E] border border-[#33353F] placeholder-[#9CA2A9] text-gray-100 text-sm rounded-lg block w-full p-2.5"
+                                    className="bg-[#18191E] border border-[#33353F] placeholder-[#9CA2A9] text-gray-100 text-sm rounded-lg block w-full p-2.5 focus:border-heading focus:ring-1 focus:ring-heading transition-colors duration-300"
                                     placeholder="Let's talk about..."
                                 />
                                 <ValidationError
@@ -240,28 +237,28 @@ const Contact = () => {
                                     field="message"
                                     errors={state.errors}
                                 />
-                            </div>
-                            <button
+                            </motion.div>
+                            <motion.button
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={inViewContent ? { opacity: 1, y: 0 } : {}}
+                                transition={{ duration: 0.5, delay: 0.65 }}
+                                whileHover={{ scale: 0.98 }}
+                                whileTap={{ scale: 0.95 }}
                                 type="submit"
                                 disabled={state.submitting}
-                                className="rounded-full mr-4 bg-transparent border-white border-2 text-white text-center hover:bg-darkHover font-medium py-2.5 px-5 w-full hover:scale-[0.98] transition-all duration-500 ease-in-out "
+                                className="rounded-full mr-4 bg-transparent border-white border-2 text-white text-center hover:bg-darkHover font-medium py-2.5 px-5 w-full transition-all duration-500 ease-in-out"
                                 onClick={(e) =>  {
                                     e.preventDefault();
                                     sendMail(formData);
                                 }}
                             >
                                 Send Message
-                            </button>
+                            </motion.button>
                         </form>
                     )}
                 </motion.div>
             </div>
 
-            <footer className="flex items-center p-6 text-center">
-                <span className="w-full text-textPara">
-                    All Rights Reserved © {new Date().getFullYear()} - Canberk Pitirli
-                </span>
-            </footer>
         </section>
     );
 };
