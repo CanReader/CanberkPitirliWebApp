@@ -1,27 +1,23 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-    content: [
-        "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-        "./src/Components/**/*.{js,ts,jsx,tsx,mdx}",
-        "./src/app/**/*.{js,ts,jsx,tsx,mdx}"
-    ],
-    theme: {
-        extend: {
-            backgroundImage: {
-                "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-                "gradient-conic":
-                    "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
-            },
-            colors: {
-                bgDark: "#121212",
-                textPara: "#57556C",
-                heading: "#3182CE",
-                textWhite: "#FAF7F2",
-                textLight: "#9ca3af",
-                darkHover: "#18191E",
-            },
-        },
+  content: ["./index.html", "./src/**/*.{js,jsx}"],
+  theme: {
+    extend: {
+      colors: {
+        bg: "#09090B",
+        surface: "#18181B",
+        border: "#27272A",
+        muted: "#A1A1AA",
+        text: "#FAFAFA",
+        accent: "#34D399",
+        "accent-dim": "#065F46",
+      },
+      fontFamily: {
+        heading: ['"Space Grotesk"', "sans-serif"],
+        body: ['"Inter"', "sans-serif"],
+        mono: ['"JetBrains Mono"', "monospace"],
+      },
     },
-    darkMode: "class",
-    plugins: [require('@codaworks/react-glow/tailwind')],
+  },
+  plugins: [],
 };

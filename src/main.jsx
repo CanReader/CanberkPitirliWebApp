@@ -1,17 +1,22 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App.jsx";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import App from "./App";
 import "./index.css";
-import AdminLogin from './Components/admin/login.jsx'; 
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+
+const BlogList = lazy(() => import("./pages/BlogList"));
+const BlogPost = lazy(() => import("./pages/BlogPost"));
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-    <React.StrictMode>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/*" element={<App/>}/>
-            <Route path="/admin" element={<AdminLogin/>}/>
-          </Routes> 
-        </BrowserRouter>
-    </React.StrictMode>
+  <React.StrictMode>
+    <BrowserRouter>
+      <Suspense fallback={<div className="min-h-screen bg-bg" />}>
+        <Routes>
+          <Route path="/" element={<App />} />
+          <Route path="/blog" element={<BlogList />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
+  </React.StrictMode>
 );
