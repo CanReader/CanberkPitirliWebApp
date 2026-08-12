@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Search } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import MagneticButton from "./MagneticButton";
+import { trackEvent } from "../lib/analytics";
 
 const sectionLinks = [
   { name: "About", hash: "#about" },
@@ -26,15 +27,15 @@ export default function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 w-full z-50 transition-[background-color,border-color] duration-300 ${
         scrolled
-          ? "bg-bg/80 backdrop-blur-lg border-b border-border"
+          ? "bg-bg/95 border-b border-border"
           : "bg-transparent"
       }`}
     >
       <div className="max-w-6xl mx-auto px-5 md:px-8 flex items-center justify-between h-16">
         <a
-          href="#hero"
+          href={isHome ? "#hero" : "/#hero"}
           className="font-heading font-bold text-lg text-text tracking-tight hover:text-accent transition-colors"
         >
           CP<span className="text-accent">.</span>
@@ -59,12 +60,21 @@ export default function Navbar() {
           >
             Blog
           </Link>
+          <button
+            onClick={() => window.dispatchEvent(new Event("open-cmdk"))}
+            aria-label="Open search (Ctrl+K)"
+            className="flex items-center gap-2 text-muted hover:text-text border border-border hover:border-accent/30 rounded-full px-3 py-1.5 transition-colors"
+          >
+            <Search size={13} />
+            <kbd className="text-[10px] font-mono leading-none">Ctrl K</kbd>
+          </button>
           <MagneticButton strength={0.25}>
             <a
               href="https://drive.google.com/file/d/1N0feMoS_lJVaWSPMEQ0rEjmC5wttEtzR/view?usp=sharing"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm font-medium px-4 py-1.5 rounded-full border border-accent text-accent hover:bg-accent hover:text-bg transition-all duration-200 block"
+              onClick={() => trackEvent("resume_click", { from: "navbar" })}
+              className="text-sm font-medium px-4 py-1.5 rounded-full border border-accent text-accent hover:bg-accent hover:text-bg transition-colors duration-200 block"
             >
               Resume
             </a>
@@ -76,6 +86,7 @@ export default function Navbar() {
           className="md:hidden text-text"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Toggle menu"
+          aria-expanded={mobileOpen}
         >
           {mobileOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
@@ -89,7 +100,7 @@ export default function Navbar() {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden bg-bg/95 backdrop-blur-lg border-b border-border overflow-hidden"
+            className="md:hidden bg-bg border-b border-border overflow-hidden"
           >
             <div className="flex flex-col px-5 py-4 gap-3">
               {sectionLinks.map((link) => (
@@ -115,7 +126,7 @@ export default function Navbar() {
                 href="https://drive.google.com/file/d/1N0feMoS_lJVaWSPMEQ0rEjmC5wttEtzR/view?usp=sharing"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm font-medium px-4 py-2 rounded-full border border-accent text-accent text-center hover:bg-accent hover:text-bg transition-all duration-200 mt-2"
+                className="text-sm font-medium px-4 py-2 rounded-full border border-accent text-accent text-center hover:bg-accent hover:text-bg transition-colors duration-200 mt-2"
               >
                 Resume
               </a>
