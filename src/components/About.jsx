@@ -1,6 +1,7 @@
-import { motion, useInView, useSpring, useTransform } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
 import { Star, Quote } from "lucide-react";
+import GiantsQuotes from "./GiantsQuotes";
 
 const stats = [
   { value: 5, suffix: "+", label: "Years Commercial" },
@@ -31,25 +32,24 @@ const testimonials = [
 ];
 
 function AnimatedCounter({ value, suffix, inView }) {
-  const spring = useSpring(0, { stiffness: 50, damping: 20 });
-  const rounded = useTransform(spring, (v) => Math.round(v));
   const [display, setDisplay] = useState(0);
+  const rafRef = useRef(null);
 
   useEffect(() => {
-    if (inView) spring.set(value);
-  }, [inView, value, spring]);
+    if (!inView) return;
+    const start = performance.now();
+    const duration = 1200;
+    const animate = (now) => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(Math.round(eased * value));
+      if (t < 1) rafRef.current = requestAnimationFrame(animate);
+    };
+    rafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [inView, value]);
 
-  useEffect(() => {
-    const unsubscribe = rounded.on("change", (v) => setDisplay(v));
-    return unsubscribe;
-  }, [rounded]);
-
-  return (
-    <>
-      {display.toLocaleString()}
-      {suffix}
-    </>
-  );
+  return <>{display.toLocaleString()}{suffix}</>;
 }
 
 export default function About() {
@@ -210,6 +210,8 @@ export default function About() {
               </motion.div>
             ))}
           </div>
+
+          <GiantsQuotes />
         </motion.div>
       </motion.div>
     </section>
