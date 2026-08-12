@@ -5,6 +5,36 @@ import { Briefcase, GraduationCap, Rocket } from "lucide-react";
 const timeline = [
   {
     type: "work",
+    visible: false, // set to true (or remove) to publish
+    role: "Fullstack Software Engineer",
+    company: "Creatant",
+    period: "May 2026 - Present",
+    description:
+      "The biggest role of my career so far. I build and ship features across the whole stack of a production web platform: TypeScript and React on the front, with the backend and infrastructure work that comes with a real product. Most of what we're building isn't public yet, so this entry stays short on purpose.",
+    highlights: [
+      "Fullstack ownership: UI, APIs, and the data layer behind them",
+      "TypeScript and React in production, shipping daily",
+      "Relocating to Japan for the company in September 2026",
+    ],
+    techs: ["TypeScript", "React", "PostgreSQL", "Docker"],
+  },
+  {
+    type: "work",
+    visible: false, // set to true (or remove) to publish
+    role: "C++ Developer (Freelance)",
+    company: "Ursa Majeur",
+    period: "Jan 2026 - Present",
+    description:
+      "Freelance C++ developer for an Istanbul based game studio. I built their procedural terrain generation plugin for Unreal Engine 5 from scratch: deterministic generation from a seed, fast enough for runtime use, and simple enough that designers shape worlds without touching code.",
+    highlights: [
+      "Procedural terrain generation plugin in C++ for UE5, built from scratch",
+      "The plugin generates the worlds of Slashbang, the studio's unannounced roguelike",
+      "Contributing to Celestial Temple, coming to Steam in Q4 2026",
+    ],
+    techs: ["C++", "Unreal Engine 5"],
+  },
+  {
+    type: "work",
     role: "C++ Game Developer",
     company: "Reality Arts Studio",
     period: "Jun 2022 - Aug 2024",
@@ -111,7 +141,7 @@ export default function Experience() {
           <div className="absolute left-[15px] sm:left-[19px] top-0 bottom-0 w-px bg-border" />
 
           <div className="space-y-8 sm:space-y-12">
-            {timeline.map((item, i) => {
+            {timeline.filter((item) => item.visible !== false).map((item, i) => {
               const Icon = iconMap[item.type];
               return (
                 <motion.div
