@@ -55,12 +55,11 @@ function renderPage(page) {
   );
 
   if (page.image) {
+    // All page images are generated 1200x630 cards, so the default
+    // og:image:width/height stay correct.
     html = replaceMeta(html, "property", "og:image", page.image);
     html = replaceMeta(html, "property", "twitter:image", page.image);
-    // The default og:image dimensions no longer apply to a custom image
-    html = html
-      .replace(/\s*<meta property="og:image:width"[^>]*\/>/, "")
-      .replace(/\s*<meta property="og:image:height"[^>]*\/>/, "");
+    html = replaceMeta(html, "property", "og:image:alt", page.title);
   }
 
   let extra = "";
@@ -90,6 +89,7 @@ writePage("/blog", {
   description:
     "Thoughts on graphics programming, game development, C++, Rust, and systems design by Canberk Pitirli.",
   url: `${site.url}/blog`,
+  image: `${site.url}/og/home.png`,
   jsonLd: {
     "@context": "https://schema.org",
     "@type": "Blog",
@@ -108,6 +108,7 @@ for (const post of posts) {
     url,
     type: "article",
     publishedTime: post.date,
+    image: `${site.url}/og/blog-${post.slug}.png`,
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "BlogPosting",
@@ -116,6 +117,7 @@ for (const post of posts) {
       datePublished: post.date,
       keywords: post.tags.join(", "),
       url,
+      image: `${site.url}/og/blog-${post.slug}.png`,
       mainEntityOfPage: url,
       author: { "@type": "Person", name: site.author, url: site.url },
     },
@@ -132,7 +134,7 @@ for (const project of projects) {
     title: `${project.title} — ${site.author}`,
     description: project.description.slice(0, 300),
     url,
-    image,
+    image: `${site.url}/og/project-${project.slug}.png`,
     jsonLd: {
       "@context": "https://schema.org",
       "@type": project.categories.includes("Game Dev") ? "VideoGame" : "CreativeWork",

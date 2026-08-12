@@ -146,7 +146,7 @@ export default function ProjectDetail() {
         title={project.title}
         description={project.description.slice(0, 160)}
         path={`/projects/${project.slug}`}
-        image={project.preview.startsWith("http") ? project.preview : project.preview}
+        image={`/og/project-${project.slug}.png`}
         jsonLd={jsonLd}
       />
       <ScrollProgress />

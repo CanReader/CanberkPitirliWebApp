@@ -10,7 +10,7 @@ export const site = {
   author: "Canberk Pitirli",
   email: "mail@canberkpitirli.com",
   twitterHandle: "@can_reader",
-  ogImage: "/images/og-image.jpg",
+  ogImage: "/og/home.png",
   locale: "en_US",
   socials: {
     github: "https://github.com/CanReader",

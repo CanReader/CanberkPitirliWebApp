@@ -362,6 +362,7 @@ export default function BlogPost() {
         title={post.title}
         description={post.excerpt}
         path={`/blog/${post.slug}`}
+        image={`/og/blog-${post.slug}.png`}
         type="article"
         jsonLd={jsonLd}
       />
