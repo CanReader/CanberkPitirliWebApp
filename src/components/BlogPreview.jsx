@@ -39,7 +39,7 @@ function PostCard({ post, index, inView }) {
           onMouseMove={onMove}
           onMouseLeave={() => setMouse((m) => ({ ...m, over: false }))}
           className="relative flex flex-col h-full bg-surface border border-border rounded-xl overflow-hidden
-                     transition-all duration-300
+                     transition-[border-color,transform,box-shadow] duration-300
                      group-hover:border-accent/40
                      group-hover:-translate-y-1.5
                      group-hover:shadow-[0_12px_48px_rgba(52,211,153,0.08)]"
@@ -104,7 +104,7 @@ function PostCard({ post, index, inView }) {
                 <Clock size={10} />
                 {readingTime(post.content)} min
               </span>
-              <span className="ml-auto flex items-center gap-0.5 text-accent font-mono font-medium text-[11px] opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all duration-300">
+              <span className="ml-auto flex items-center gap-0.5 text-accent font-mono font-medium text-[11px] opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-[border-color,transform,box-shadow] duration-300">
                 Read <ArrowRight size={11} />
               </span>
             </div>

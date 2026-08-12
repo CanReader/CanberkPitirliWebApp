@@ -65,8 +65,10 @@ export default function Hero() {
         }}
       />
 
-      {/* Gradient glow — clamped to viewport */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(600px,90vw)] h-[min(600px,90vw)] bg-accent/5 rounded-full blur-[120px] -z-10" />
+      {/* Gradient glow — no blur, radial gradient is naturally soft */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(800px,90vw)] h-[min(800px,90vw)] -z-10 rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(52,211,153,0.07) 0%, transparent 65%)" }}
+      />
 
       <div className="flex flex-col-reverse lg:flex-row items-center gap-8 sm:gap-12 lg:gap-16">
         {/* Text */}
@@ -137,30 +139,25 @@ export default function Hero() {
           style={{ perspective: 800 }}
         >
           <motion.div
-            className="relative w-52 h-52 sm:w-72 sm:h-72 lg:w-[22rem] lg:h-[22rem]"
-            animate={{ y: [0, -8, 0] }}
-            transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+            className="relative w-52 h-52 sm:w-72 sm:h-72 lg:w-[22rem] lg:h-[22rem] hero-float"
             whileHover={{ rotateX: 8, rotateY: -8, scale: 1.04 }}
             whileTap={{ scale: 0.98 }}
             style={{ transformStyle: "preserve-3d" }}
           >
-            {/* Animated ring */}
-            <motion.div
-              className="absolute inset-0 rounded-full p-[2px]"
+            {/* Animated ring — CSS keyframe, runs on compositor */}
+            <div
+              className="absolute inset-0 rounded-full p-[2px] hero-spin"
               style={{
                 background:
                   "conic-gradient(from 0deg, #34D399, #065F46, #34D399, #065F46, #34D399)",
               }}
-              animate={{ rotate: 360 }}
-              transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
             >
               <div className="w-full h-full rounded-full bg-bg" />
-            </motion.div>
-            {/* Glow pulse */}
-            <motion.div
-              className="absolute -inset-3 rounded-full bg-accent/10 blur-xl -z-10"
-              animate={{ opacity: [0.3, 0.6, 0.3], scale: [0.95, 1.05, 0.95] }}
-              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+            </div>
+            {/* Glow pulse — CSS, opacity-only (no blur) */}
+            <div
+              className="absolute -inset-3 rounded-full -z-10 hero-pulse"
+              style={{ background: "radial-gradient(circle, rgba(52,211,153,0.12) 0%, transparent 70%)" }}
             />
             {/* Clip container */}
             <div className="absolute inset-2 rounded-full overflow-hidden">
@@ -182,12 +179,9 @@ export default function Hero() {
         transition={{ delay: 1 }}
         className="absolute bottom-6 sm:bottom-10 left-1/2 -translate-x-1/2 text-muted hover:text-accent transition-colors"
       >
-        <motion.div
-          animate={{ y: [0, 8, 0] }}
-          transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-        >
+        <div className="hero-bounce">
           <ArrowDown size={20} />
-        </motion.div>
+        </div>
       </motion.a>
     </section>
   );
