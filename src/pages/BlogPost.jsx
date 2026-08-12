@@ -12,6 +12,9 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 import { posts } from "../data/posts";
 import { site } from "../data/siteConfig";
 import {
@@ -436,7 +439,11 @@ export default function BlogPost() {
 
                 {/* Content */}
                 <article>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                    components={mdComponents}
+                  >
                     {post.content}
                   </ReactMarkdown>
                 </article>

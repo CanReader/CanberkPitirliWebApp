@@ -79,6 +79,18 @@ body {
   }
 }
 
+/* ── KaTeX math in blog posts ── */
+.katex { font-size: 1.06em; color: #E4E4E7; }
+.katex-display {
+  margin: 1.75rem 0;
+  padding: 1.1rem 1.25rem;
+  background: #101012;
+  border: 1px solid #27272A;
+  border-radius: 0.75rem;
+  overflow-x: auto;
+}
+.katex-display > .katex { font-size: 1.18em; }
+
 /* ── Accessibility ── */
 
 /* Visible focus ring for keyboard users only */
