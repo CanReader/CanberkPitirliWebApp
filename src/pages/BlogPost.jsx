@@ -1,26 +1,68 @@
-import { useParams, Link, Navigate } from "react-router-dom";
+import { useState, useEffect, lazy, Suspense } from "react";
+import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Calendar, Clock } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Calendar,
+  Clock,
+  Copy,
+  Check,
+  List,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { posts } from "../data/posts";
+import { site } from "../data/siteConfig";
+import {
+  readingTime,
+  formatDate,
+  slugifyHeading,
+  extractHeadings,
+} from "../lib/blogUtils";
 import Navbar from "../components/Navbar";
 import ScrollProgress from "../components/ScrollProgress";
 import CursorGlow from "../components/CursorGlow";
 import FloatingOrbs from "../components/FloatingOrbs";
+import Seo from "../components/Seo";
+import NotFound from "./NotFound";
+import { trackEvent } from "../lib/analytics";
 
-function readingTime(content) {
-  return Math.max(1, Math.ceil(content.split(/\s+/).length / 200));
+// Syntax highlighting is heavy; load it only for posts that contain code.
+const CodeBlock = lazy(() => import("../components/CodeBlock"));
+
+function nodeText(children) {
+  if (typeof children === "string") return children;
+  if (Array.isArray(children)) return children.map(nodeText).join("");
+  if (children?.props?.children) return nodeText(children.props.children);
+  return "";
 }
 
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard?.writeText(text).then(() => {
+          setCopied(true);
+          trackEvent("code_copy", { page: window.location.pathname });
+          setTimeout(() => setCopied(false), 1600);
+        });
+      }}
+      aria-label={copied ? "Copied" : "Copy code"}
+      className="flex items-center gap-1.5 text-xs font-mono text-muted hover:text-accent transition-colors"
+    >
+      {copied ? (
+        <>
+          <Check size={13} className="text-accent" /> copied
+        </>
+      ) : (
+        <>
+          <Copy size={13} /> copy
+        </>
+      )}
+    </button>
+  );
 }
 
 const mdComponents = {
@@ -28,15 +70,44 @@ const mdComponents = {
     <h1 className="font-heading font-bold text-3xl text-text mt-10 mb-4">{children}</h1>
   ),
   h2: ({ children }) => (
-    <h2 className="font-heading font-semibold text-2xl text-text mt-9 mb-3 pb-2 border-b border-border">
+    <h2
+      id={slugifyHeading(nodeText(children))}
+      className="font-heading font-semibold text-2xl text-text mt-9 mb-3 pb-2 border-b border-border scroll-mt-24"
+    >
       {children}
     </h2>
   ),
   h3: ({ children }) => (
-    <h3 className="font-heading font-semibold text-xl text-text mt-7 mb-2">{children}</h3>
+    <h3
+      id={slugifyHeading(nodeText(children))}
+      className="font-heading font-semibold text-xl text-text mt-7 mb-2 scroll-mt-24"
+    >
+      {children}
+    </h3>
   ),
-  p: ({ children }) => (
-    <p className="text-muted leading-7 mb-5">{children}</p>
+  p: ({ children, node }) => {
+    const onlyImage =
+      node.children.length === 1 &&
+      node.children[0].type === "element" &&
+      node.children[0].tagName === "img";
+    if (onlyImage) return <>{children}</>;
+    return <p className="text-muted leading-7 mb-5">{children}</p>;
+  },
+  img: ({ src, alt }) => (
+    <figure className="my-8">
+      <img
+        src={src}
+        alt={alt || ""}
+        loading="lazy"
+        decoding="async"
+        className="w-full rounded-xl border border-border object-cover"
+      />
+      {alt && (
+        <figcaption className="text-center text-xs text-muted mt-2 font-mono italic">
+          {alt}
+        </figcaption>
+      )}
+    </figure>
   ),
   a: ({ href, children }) => (
     <a
@@ -72,25 +143,22 @@ const mdComponents = {
   code({ inline, className, children }) {
     const match = /language-(\w+)/.exec(className || "");
     if (!inline && match) {
+      const code = String(children).replace(/\n$/, "");
       return (
         <div className="my-6 rounded-xl overflow-hidden border border-border">
-          <div className="bg-surface px-4 py-2 text-xs font-mono text-muted border-b border-border">
-            {match[1]}
+          <div className="flex items-center justify-between bg-surface px-4 py-2 text-xs font-mono text-muted border-b border-border">
+            <span>{match[1]}</span>
+            <CopyButton text={code} />
           </div>
-          <SyntaxHighlighter
-            style={vscDarkPlus}
-            language={match[1]}
-            PreTag="div"
-            customStyle={{
-              margin: 0,
-              borderRadius: 0,
-              background: "#0d0d10",
-              fontSize: "0.85rem",
-              lineHeight: "1.6",
-            }}
+          <Suspense
+            fallback={
+              <pre className="p-4 overflow-x-auto text-sm font-mono text-muted bg-[#0d0d10]">
+                {code}
+              </pre>
+            }
           >
-            {String(children).replace(/\n$/, "")}
-          </SyntaxHighlighter>
+            <CodeBlock language={match[1]} code={code} />
+          </Suspense>
         </div>
       );
     }
@@ -102,20 +170,209 @@ const mdComponents = {
   },
 };
 
+/* ── Table of contents ── */
+function useActiveHeading(headings) {
+  const [active, setActive] = useState(null);
+  useEffect(() => {
+    if (headings.length === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) setActive(entry.target.id);
+        }
+      },
+      { rootMargin: "-80px 0px -70% 0px" }
+    );
+    for (const h of headings) {
+      const el = document.getElementById(h.id);
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
+  }, [headings]);
+  return active;
+}
+
+function scrollToHeading(e, id) {
+  e.preventDefault();
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  history.replaceState(null, "", `#${id}`);
+}
+
+function TocSidebar({ headings, active }) {
+  return (
+    <nav aria-label="Table of contents" className="hidden xl:block">
+      <div className="sticky top-28">
+        <p className="text-xs font-mono text-muted tracking-wider uppercase mb-3">
+          On this page
+        </p>
+        <ul className="space-y-1.5 border-l border-border">
+          {headings.map((h) => (
+            <li key={h.id}>
+              <a
+                href={`#${h.id}`}
+                onClick={(e) => scrollToHeading(e, h.id)}
+                className={`block text-[13px] leading-snug py-0.5 border-l-2 -ml-px transition-colors ${
+                  h.depth === 3 ? "pl-6" : "pl-3"
+                } ${
+                  active === h.id
+                    ? "border-accent text-accent"
+                    : "border-transparent text-muted hover:text-text"
+                }`}
+              >
+                {h.text}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </nav>
+  );
+}
+
+function TocMobile({ headings }) {
+  return (
+    <details className="xl:hidden mb-8 bg-surface border border-border rounded-xl overflow-hidden group">
+      <summary className="flex items-center gap-2 px-4 py-3 text-sm text-muted cursor-pointer select-none hover:text-text transition-colors">
+        <List size={14} className="text-accent" />
+        On this page
+      </summary>
+      <ul className="px-4 pb-4 space-y-1.5">
+        {headings.map((h) => (
+          <li key={h.id}>
+            <a
+              href={`#${h.id}`}
+              onClick={(e) => scrollToHeading(e, h.id)}
+              className={`block text-sm text-muted hover:text-accent transition-colors py-0.5 ${
+                h.depth === 3 ? "pl-4" : ""
+              }`}
+            >
+              {h.text}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+/* ── Prev / next + related ── */
+function NeighborLink({ post, direction }) {
+  if (!post) return <div className="flex-1" />;
+  const isPrev = direction === "prev";
+  return (
+    <Link
+      to={`/blog/${post.slug}`}
+      className={`flex-1 group bg-surface border border-border rounded-xl p-4 hover:border-accent/30 transition-colors ${
+        isPrev ? "text-left" : "text-right"
+      }`}
+    >
+      <p
+        className={`flex items-center gap-1.5 text-xs text-muted font-mono mb-1.5 ${
+          isPrev ? "" : "justify-end"
+        }`}
+      >
+        {isPrev ? (
+          <>
+            <ArrowLeft size={12} /> Older
+          </>
+        ) : (
+          <>
+            Newer <ArrowRight size={12} />
+          </>
+        )}
+      </p>
+      <p className="text-sm text-text font-medium leading-snug group-hover:text-accent transition-colors line-clamp-2">
+        {post.title}
+      </p>
+    </Link>
+  );
+}
+
+function RelatedPosts({ current }) {
+  const related = posts
+    .filter((p) => p.slug !== current.slug && p.category === current.category)
+    .slice(0, 3);
+  if (related.length === 0) return null;
+  return (
+    <div className="mt-12">
+      <p className="text-xs font-mono text-muted tracking-wider uppercase mb-4">
+        More in {current.category}
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {related.map((p) => (
+          <Link
+            key={p.slug}
+            to={`/blog/${p.slug}`}
+            className="group bg-surface border border-border rounded-xl p-4 hover:border-accent/30 transition-colors"
+          >
+            <p className="text-sm text-text font-medium leading-snug mb-2 group-hover:text-accent transition-colors line-clamp-2">
+              {p.title}
+            </p>
+            <p className="text-xs text-muted font-mono">
+              {formatDate(p.date, { short: true })} · {readingTime(p.content)} min
+            </p>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Page ── */
 export default function BlogPost() {
   const { slug } = useParams();
   const post = posts.find((p) => p.slug === slug);
 
-  if (!post) return <Navigate to="/blog" replace />;
+  const headings = post ? extractHeadings(post.content) : [];
+  const active = useActiveHeading(headings);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [slug]);
+
+  if (!post) return <NotFound />;
+
+  const index = posts.findIndex((p) => p.slug === slug);
+  const newer = posts[index - 1] ?? null;
+  const older = posts[index + 1] ?? null;
+  const showToc = headings.length >= 3;
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.excerpt,
+    datePublished: post.date,
+    keywords: post.tags.join(", "),
+    url: `${site.url}/blog/${post.slug}`,
+    author: {
+      "@type": "Person",
+      name: site.author,
+      url: site.url,
+    },
+    mainEntityOfPage: `${site.url}/blog/${post.slug}`,
+  };
 
   return (
     <>
+      <Seo
+        title={post.title}
+        description={post.excerpt}
+        path={`/blog/${post.slug}`}
+        type="article"
+        jsonLd={jsonLd}
+      />
       <ScrollProgress />
       <CursorGlow />
       <FloatingOrbs />
       <div className="min-h-screen bg-bg">
         <Navbar />
-        <main className="max-w-3xl mx-auto px-5 md:px-8 pt-28 pb-24">
+        <main
+          id="main"
+          className={`mx-auto px-5 md:px-8 pt-28 pb-24 ${
+            showToc ? "max-w-3xl xl:max-w-5xl" : "max-w-3xl"
+          }`}
+        >
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -167,12 +424,34 @@ export default function BlogPost() {
               </span>
             </div>
 
-            {/* Content */}
-            <article>
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                {post.content}
-              </ReactMarkdown>
-            </article>
+            <div
+              className={
+                showToc
+                  ? "xl:grid xl:grid-cols-[minmax(0,1fr)_210px] xl:gap-12"
+                  : ""
+              }
+            >
+              <div className="min-w-0">
+                {showToc && <TocMobile headings={headings} />}
+
+                {/* Content */}
+                <article>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                    {post.content}
+                  </ReactMarkdown>
+                </article>
+              </div>
+
+              {showToc && <TocSidebar headings={headings} active={active} />}
+            </div>
+
+            {/* Prev / next */}
+            <div className="flex gap-3 mt-16">
+              <NeighborLink post={older} direction="prev" />
+              <NeighborLink post={newer} direction="next" />
+            </div>
+
+            <RelatedPosts current={post} />
 
             {/* Footer */}
             <div className="mt-16 pt-8 border-t border-border">

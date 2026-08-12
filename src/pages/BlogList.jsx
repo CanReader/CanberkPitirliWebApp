@@ -6,18 +6,8 @@ import Navbar from "../components/Navbar";
 import ScrollProgress from "../components/ScrollProgress";
 import CursorGlow from "../components/CursorGlow";
 import FloatingOrbs from "../components/FloatingOrbs";
-
-function readingTime(content) {
-  return Math.max(1, Math.ceil(content.split(/\s+/).length / 200));
-}
-
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
+import Seo from "../components/Seo";
+import { readingTime, formatDate } from "../lib/blogUtils";
 
 // Count posts per category (for the tab badges)
 function buildCounts() {
@@ -171,12 +161,17 @@ export default function BlogList() {
 
   return (
     <>
+      <Seo
+        title="Blog"
+        description="Thoughts on graphics programming, game development, C++, Rust, and systems design by Canberk Pitirli."
+        path="/blog"
+      />
       <ScrollProgress />
       <CursorGlow />
       <FloatingOrbs />
       <div className="min-h-screen bg-bg">
         <Navbar />
-        <main className="max-w-4xl mx-auto px-5 md:px-8 pt-28 pb-24">
+        <main id="main" className="max-w-4xl mx-auto px-5 md:px-8 pt-28 pb-24">
 
           {/* Header */}
           <motion.div
