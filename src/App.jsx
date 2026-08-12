@@ -15,9 +15,12 @@ import ScrollProgress from "./components/ScrollProgress";
 import BackToTop from "./components/BackToTop";
 import FloatingOrbs from "./components/FloatingOrbs";
 import EasterEgg from "./components/EasterEgg";
+import Seo from "./components/Seo";
+import usePrefersReducedMotion from "./lib/usePrefersReducedMotion";
 
 export default function App() {
   const [loading, setLoading] = useState(true);
+  const reducedMotion = usePrefersReducedMotion();
 
   // Loading screen
   useEffect(() => {
@@ -25,11 +28,11 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Lenis smooth scroll
+  // Lenis smooth scroll (skipped for users who prefer reduced motion)
   useEffect(() => {
-    if (loading) return;
+    if (loading || reducedMotion) return;
     const lenis = new Lenis({
-      duration: 1.2,
+      duration: 0.85,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
     });
@@ -41,10 +44,14 @@ export default function App() {
     requestAnimationFrame(raf);
 
     return () => lenis.destroy();
-  }, [loading]);
+  }, [loading, reducedMotion]);
 
   return (
     <>
+      <Seo />
+      <a href="#main" className="skip-link">
+        Skip to content
+      </a>
       <LoadingScreen finished={!loading} />
       <ScrollProgress />
       <CursorGlow />
@@ -53,7 +60,7 @@ export default function App() {
       <EasterEgg />
       <div className="min-h-screen bg-bg">
         <Navbar />
-        <main className="max-w-6xl mx-auto px-5 md:px-8">
+        <main id="main" className="max-w-6xl mx-auto px-5 md:px-8">
           <Hero />
           <About />
           <Skills />

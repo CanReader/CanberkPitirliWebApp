@@ -42,6 +42,28 @@ body {
   to { opacity: 1; }
 }
 
+@keyframes hero-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes hero-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+@keyframes hero-pulse {
+  0%, 100% { opacity: 0.35; }
+  50%       { opacity: 0.65; }
+}
+
+@keyframes hero-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(8px); }
+}
+
+.hero-spin   { animation: hero-spin   8s linear     infinite; will-change: transform; }
+.hero-float  { animation: hero-float  4s ease-in-out infinite; will-change: transform; }
+.hero-pulse  { animation: hero-pulse  4s ease-in-out infinite; }
+.hero-bounce { animation: hero-bounce 2s ease-in-out infinite; }
+
 /* Hide scrollbar on horizontal scroll containers */
 .scrollbar-none {
   -ms-overflow-style: none;
@@ -54,5 +76,47 @@ body {
 @layer utilities {
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-accent to-emerald-200;
+  }
+}
+
+/* ── Accessibility ── */
+
+/* Visible focus ring for keyboard users only */
+:focus-visible {
+  outline: 2px solid #34D399;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skip-to-content link: hidden until focused */
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 16px;
+  z-index: 100;
+  background: #34D399;
+  color: #09090B;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 8px;
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: 16px;
+}
+
+/* Respect prefers-reduced-motion: neutralize CSS animations/transitions.
+   framer-motion is handled separately via <MotionConfig reducedMotion="user">. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html {
+    scroll-behavior: auto !important;
   }
 }

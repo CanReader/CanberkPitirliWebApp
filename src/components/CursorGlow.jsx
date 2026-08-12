@@ -1,9 +1,12 @@
 import { useEffect, useRef } from "react";
+import usePrefersReducedMotion from "../lib/usePrefersReducedMotion";
 
 export default function CursorGlow() {
   const glowRef = useRef(null);
+  const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
+    if (reducedMotion) return;
     // Skip on touch devices
     if (window.matchMedia("(pointer: coarse)").matches) return;
 
@@ -25,7 +28,9 @@ export default function CursorGlow() {
       document.removeEventListener("mouseleave", onLeave);
       document.removeEventListener("mouseenter", onEnter);
     };
-  }, []);
+  }, [reducedMotion]);
+
+  if (reducedMotion) return null;
 
   // Hide on touch devices via SSR-safe check
   if (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches) {

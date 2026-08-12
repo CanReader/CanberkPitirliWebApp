@@ -1,6 +1,7 @@
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
-import { ExternalLink, Github, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ExternalLink, Github, Globe, X, ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import {
   projects,
   allCategories,
@@ -8,17 +9,47 @@ import {
   langLogos,
   techLogos,
 } from "../data/projects";
+import { trackEvent } from "../lib/analytics";
 
 /* ── Modal ── */
 function ProjectModal({ project, onClose }) {
   const [imgIdx, setImgIdx] = useState(0);
   const imgs = project.images.length > 0 ? project.images : [project.preview];
+  const dialogRef = useRef(null);
 
-  // Lock body scroll when modal is open
+  // Lock body scroll while open, close on Escape, keep keyboard focus inside
   useEffect(() => {
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
+    const previouslyFocused = document.activeElement;
+    dialogRef.current?.querySelector("[data-autofocus]")?.focus();
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab" || !dialogRef.current) return;
+      const focusables = dialogRef.current.querySelectorAll(
+        'button, a[href], [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = "";
+      document.removeEventListener("keydown", onKeyDown);
+      previouslyFocused?.focus?.();
+    };
+  }, [onClose]);
 
   return (
     <motion.div
@@ -29,6 +60,10 @@ function ProjectModal({ project, onClose }) {
       onClick={onClose}
     >
       <motion.div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={project.title}
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 40 }}
@@ -49,12 +84,14 @@ function ProjectModal({ project, onClose }) {
                 onClick={() =>
                   setImgIdx((imgIdx - 1 + imgs.length) % imgs.length)
                 }
+                aria-label="Previous screenshot"
                 className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 active:bg-black/80 hover:bg-black/70 text-white rounded-full p-2 sm:p-1.5 transition-colors"
               >
                 <ChevronLeft size={20} className="sm:w-[18px] sm:h-[18px]" />
               </button>
               <button
                 onClick={() => setImgIdx((imgIdx + 1) % imgs.length)}
+                aria-label="Next screenshot"
                 className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 active:bg-black/80 hover:bg-black/70 text-white rounded-full p-2 sm:p-1.5 transition-colors"
               >
                 <ChevronRight size={20} className="sm:w-[18px] sm:h-[18px]" />
@@ -64,6 +101,7 @@ function ProjectModal({ project, onClose }) {
                   <button
                     key={i}
                     onClick={() => setImgIdx(i)}
+                    aria-label={`Show screenshot ${i + 1}`}
                     className={`w-2.5 h-2.5 sm:w-2 sm:h-2 rounded-full transition-colors ${
                       i === imgIdx ? "bg-accent" : "bg-white/40"
                     }`}
@@ -74,6 +112,8 @@ function ProjectModal({ project, onClose }) {
           )}
           <button
             onClick={onClose}
+            aria-label="Close dialog"
+            data-autofocus
             className="absolute top-3 right-3 bg-black/50 active:bg-black/80 hover:bg-black/70 text-white rounded-full p-2 sm:p-1.5 transition-colors"
           >
             <X size={20} className="sm:w-[18px] sm:h-[18px]" />
@@ -92,11 +132,25 @@ function ProjectModal({ project, onClose }) {
               </p>
             </div>
             <div className="flex gap-2 flex-shrink-0">
+              {project.website && (
+                <a
+                  href={project.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${project.title} website`}
+                  onClick={() => trackEvent("project_link_click", { project: project.title, link: "website" })}
+                  className="text-muted hover:text-accent active:text-accent transition-colors p-2 border border-border rounded-lg hover:border-accent/30"
+                >
+                  <Globe size={18} />
+                </a>
+              )}
               {project.git && (
                 <a
                   href={project.git}
                   target="_blank"
                   rel="noopener noreferrer"
+                  aria-label={`${project.title} source code on GitHub`}
+                  onClick={() => trackEvent("project_link_click", { project: project.title, link: "github" })}
                   className="text-muted hover:text-accent active:text-accent transition-colors p-2 border border-border rounded-lg hover:border-accent/30"
                 >
                   <Github size={18} />
@@ -107,6 +161,8 @@ function ProjectModal({ project, onClose }) {
                   href={project.store}
                   target="_blank"
                   rel="noopener noreferrer"
+                  aria-label={`${project.title} store page`}
+                  onClick={() => trackEvent("project_link_click", { project: project.title, link: "store" })}
                   className="text-muted hover:text-accent active:text-accent transition-colors p-2 border border-border rounded-lg hover:border-accent/30"
                 >
                   <ExternalLink size={18} />
@@ -152,6 +208,15 @@ function ProjectModal({ project, onClose }) {
               </span>
             ))}
           </div>
+
+          {/* Full page link */}
+          <Link
+            to={`/projects/${project.slug}`}
+            className="inline-flex items-center gap-1.5 text-accent text-sm font-medium mt-5 hover:underline underline-offset-4"
+          >
+            Full project page
+            <ArrowRight size={14} />
+          </Link>
         </div>
       </motion.div>
     </motion.div>
@@ -178,7 +243,16 @@ function ProjectCard({ project, onClick, index, inView }) {
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.4, delay: 0.05 * (index % 6) }}
       onClick={onClick}
-      className="group cursor-pointer bg-surface border border-border rounded-xl overflow-hidden hover:border-accent/30 active:border-accent/30 transition-all duration-300"
+      role="button"
+      tabIndex={0}
+      aria-label={`Open details for ${project.title}`}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className="group cursor-pointer bg-surface border border-border rounded-xl overflow-hidden hover:border-accent/30 active:border-accent/30 transition-colors duration-300"
     >
       {/* Image slider */}
       <div className="aspect-video overflow-hidden bg-bg relative">
@@ -266,7 +340,7 @@ function LanguageFilter({ activeLang, onSelect }) {
     <div className="flex lg:flex-col gap-1.5 sm:gap-2 lg:gap-1.5">
       <button
         onClick={() => onSelect(null)}
-        className={`flex items-center justify-center lg:justify-start gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-mono transition-all duration-200 ${
+        className={`flex items-center justify-center lg:justify-start gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-mono transition-colors duration-200 ${
           activeLang === null
             ? "bg-accent/15 text-accent border border-accent/30"
             : "text-muted hover:text-text hover:bg-surface border border-transparent"
@@ -279,7 +353,7 @@ function LanguageFilter({ activeLang, onSelect }) {
           key={lang}
           onClick={() => onSelect(activeLang === lang ? null : lang)}
           title={lang}
-          className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-mono transition-all duration-200 ${
+          className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-mono transition-colors duration-200 ${
             activeLang === lang
               ? "bg-accent/15 text-accent border border-accent/30"
               : "text-muted hover:text-text hover:bg-surface border border-transparent"
@@ -309,7 +383,12 @@ export default function Projects() {
   const inView = useInView(ref, { once: true, margin: "-30px" });
   const [catFilter, setCatFilter] = useState("All");
   const [langFilter, setLangFilter] = useState(null);
-  const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedProject, setSelectedProjectState] = useState(null);
+
+  const setSelectedProject = (project) => {
+    if (project) trackEvent("project_open", { project: project.title });
+    setSelectedProjectState(project);
+  };
 
   const featured = projects.filter((p) => p.featured);
 

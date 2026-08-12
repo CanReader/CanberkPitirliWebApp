@@ -1,20 +1,21 @@
+import usePrefersReducedMotion from "../lib/usePrefersReducedMotion";
+
 const orbs = [
-  { size: 400, x: "10%", y: "15%", color: "rgba(52,211,153,0.04)", duration: 25, delay: 0 },
-  { size: 350, x: "75%", y: "40%", color: "rgba(52,211,153,0.03)", duration: 30, delay: -8 },
-  { size: 500, x: "50%", y: "70%", color: "rgba(6,95,70,0.04)", duration: 35, delay: -15 },
-  { size: 300, x: "85%", y: "85%", color: "rgba(52,211,153,0.025)", duration: 20, delay: -5 },
-  { size: 250, x: "20%", y: "55%", color: "rgba(6,95,70,0.035)", duration: 28, delay: -12 },
+  { size: 700, x: "5%",  y: "10%", color: "rgba(52,211,153,0.055)", duration: 25, delay: 0 },
+  { size: 650, x: "70%", y: "35%", color: "rgba(52,211,153,0.04)",  duration: 30, delay: -8 },
+  { size: 750, x: "45%", y: "65%", color: "rgba(6,95,70,0.05)",     duration: 35, delay: -15 },
 ];
 
 export default function FloatingOrbs() {
+  // With reduced motion the orbs stay as static background gradients
+  const reducedMotion = usePrefersReducedMotion();
   return (
     <>
       <style>{`
         @keyframes orb-drift {
           0%, 100% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(40px, -30px) scale(1.1); }
-          50% { transform: translate(-30px, 20px) scale(0.95); }
-          75% { transform: translate(20px, -40px) scale(1.05); }
+          33%       { transform: translate(35px, -25px) scale(1.06); }
+          66%       { transform: translate(-25px, 18px) scale(0.96); }
         }
       `}</style>
       <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
@@ -27,9 +28,10 @@ export default function FloatingOrbs() {
               height: orb.size,
               left: orb.x,
               top: orb.y,
-              background: `radial-gradient(circle, ${orb.color} 0%, transparent 70%)`,
-              filter: "blur(60px)",
-              animation: `orb-drift ${orb.duration}s ease-in-out infinite`,
+              background: `radial-gradient(circle, ${orb.color} 0%, transparent 65%)`,
+              animation: reducedMotion
+                ? "none"
+                : `orb-drift ${orb.duration}s ease-in-out infinite`,
               animationDelay: `${orb.delay}s`,
             }}
           />
