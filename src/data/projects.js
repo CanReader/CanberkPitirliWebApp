@@ -2,6 +2,8 @@ export const langLogos = {
   "C++": "/images/Cpp Logo.svg",
   "C#": "/images/Cs Logo.svg",
   Rust: "/images/RustLogo1.svg",
+  Kotlin: "/images/Kotlin Logo.svg",
+  TypeScript: "/images/TypeScript Logo.svg",
   Java: "/images/Java Logo.svg",
   JavaScript: "/images/JS Logo.svg",
   Python: "/images/Python Logo.svg",
@@ -25,7 +27,7 @@ export const techLogos = {
 };
 
 // ── Ordered by importance / interest. Image-less projects at the bottom. ──
-export const projects = [
+const rawProjects = [
   // ===== FEATURED (top 3) =====
   {
     title: "Unawake",
@@ -88,6 +90,39 @@ export const projects = [
 
   // ===== WITH IMAGES — ordered by importance =====
   {
+    title: "Celestial Temple",
+    visible: false, // set to true (or remove) to publish
+    description:
+      "Narrative action-adventure from Ursa Majeur, coming to Steam in Q4 2026. You play as Curiosity, working out who and where you are across a dreamlike mythic odyssey, fighting enemies that wear your own face. I'm on the project as a freelance C++ developer, writing gameplay and engine-side systems in Unreal Engine 5.",
+    date: "2026",
+    categories: ["Game Dev"],
+    languages: ["C++"],
+    techs: ["Unreal Engine"],
+    platforms: ["Windows"],
+    status: "In Progress",
+    store: "https://store.steampowered.com/app/4636850/Celestial_Temple/",
+    preview:
+      "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4636850/e8fbda74411404b47f01f2c46765e8c371cf9b8a/header.jpg?t=1779448016",
+    images: [
+      "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4636850/7379781f1d01beae1762316309a174ac8f118dca/ss_7379781f1d01beae1762316309a174ac8f118dca.1920x1080.jpg?t=1779448016",
+      "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/4636850/a7b61c72bc7e1bc99c9194a91f7e4705c06d6e95/capsule_616x353.jpg?t=1779448016",
+    ],
+  },
+  {
+    title: "Slashbang",
+    visible: false, // set to true (or remove) to publish
+    description:
+      "First person roguelike hack and slash, in development at Ursa Majeur and not announced yet, so this card stays vague on purpose. What I can say: it runs on Unreal Engine 5, it's written in C++, and the procedural terrain plugin I built for the studio generates its worlds. The rest waits for the reveal.",
+    date: "2026",
+    categories: ["Game Dev"],
+    languages: ["C++"],
+    techs: ["Unreal Engine"],
+    platforms: ["Windows"],
+    status: "In Progress",
+    preview: "/images/Slashbang1.webp",
+    images: ["/images/Slashbang1.webp"],
+  },
+  {
     title: "Sleak Engine",
     description:
       "Custom game engine built entirely from scratch in C++. No Unity, no Unreal, no shortcuts. Supports four graphics backends (DirectX 11, DX12, Vulkan, OpenGL) behind a single abstraction layer. Features a component-based ECS, frame budget manager, custom actor pooling, and hot-reloadable assets. The engine powers SleakCraft, a voxel sandbox I use as a testbed.",
@@ -98,8 +133,45 @@ export const projects = [
     platforms: ["Windows"],
     status: "In Progress",
     git: "https://github.com/CanReader/SleakEngine",
-    preview: "/images/SleakCraft1.jpg",
-    images: ["/images/SleakCraft1.jpg", "/images/SleakCraft2.jpg", "/images/SleakCraft3.jpg"],
+    preview: "/images/SleakCraft1.webp",
+    images: ["/images/SleakCraft1.webp", "/images/SleakCraft2.webp", "/images/SleakCraft3.webp"],
+  },
+  {
+    title: "ViewCam",
+    description:
+      "Turn your phone into a wireless webcam, microphone, and speaker for your PC. The Kotlin Multiplatform app (Compose UI, CameraX) streams H.264 over Wi-Fi or USB with mDNS auto-discovery to a Qt 6 / C++17 desktop receiver, which decodes via FFmpeg and registers a native virtual camera: DirectShow on Windows, v4l2loopback on Linux. It works out of the box in Meet, Zoom, OBS, and Discord.",
+    date: "2023–Present",
+    categories: ["Mobile", "Desktop"],
+    languages: ["C++", "Kotlin", "Java"],
+    techs: ["Qt", "Compose Multiplatform"],
+    platforms: ["Android", "Windows", "Linux"],
+    status: "Released",
+    website: "https://viewcam.tech",
+    store: "https://play.google.com/store/apps/details?id=com.sleak.vcam",
+    preview: "/images/ViewCam1.webp",
+    images: ["/images/ViewCam1.webp", "/images/ViewCam2.webp", "/images/ViewCam3.webp"],
+  },
+  {
+    title: "Creatant",
+    visible: false, // set to true (or remove) to publish
+    description:
+      "Creatant is a visual content network: a browser based platform where creatives collect, organize, and share visual work in an interface that looks nothing like traditional software. No tracking, no ads, nothing to install. I work on it full time as a fullstack software engineer, TypeScript and React in production, shipping daily.",
+    date: "2026–Present",
+    categories: ["Full Stack"],
+    languages: ["TypeScript"],
+    techs: ["React"],
+    platforms: ["Web"],
+    status: "In Progress",
+    website: "https://www.creatant.com",
+    preview: "/images/Creatant2.webp",
+    images: [
+      "/images/Creatant2.webp",
+      "/images/Creatant6.webp",
+      "/images/Creatant7.webp",
+      "/images/Creatant4.webp",
+      "/images/Creatant3.webp",
+      "/images/Creatant5.webp",
+    ],
   },
   {
     title: "Adv. DirectX 11 Course",
@@ -204,6 +276,36 @@ export const projects = [
     images: [],
   },
   {
+    title: "Tactix",
+    description:
+      "Game AI plugin for Unreal Engine 5 that goes beyond stock Behavior Trees: Utility AI scoring, GOAP and HTN planners, a dynamic cover system, influence maps, and squad formations in one modular C++ toolkit for tactical enemy behavior.",
+    date: "2026",
+    categories: ["Game Dev", "AI/ML"],
+    languages: ["C++"],
+    techs: ["Unreal Engine"],
+    platforms: ["Windows"],
+    status: "In Progress",
+    git: "https://github.com/CanReader/Tactix",
+    preview:
+      "https://socialify.git.ci/CanReader/Tactix/image?description=1&font=Jost&language=1&name=1&owner=1&pattern=Solid&theme=Dark",
+    images: [],
+  },
+  {
+    title: "RustVK",
+    description:
+      "Vulkan renderer written in Rust on raw ash bindings. No wgpu, no vulkano. Every Vulkan object is owned by a typed Rust struct and cleaned up through Drop. Blinn-Phong lighting, 4x MSAA with a multi-attachment render pass, staging-buffer uploads to device-local memory, two frames in flight, and GLSL compiled to SPIR-V at build time.",
+    date: "2026",
+    categories: ["Graphics"],
+    languages: ["Rust"],
+    techs: ["Vulkan"],
+    platforms: ["Windows", "Linux"],
+    status: "In Progress",
+    git: "https://github.com/CanReader/RustVK",
+    preview:
+      "https://socialify.git.ci/CanReader/RustVK/image?description=1&font=Jost&language=1&name=1&owner=1&pattern=Solid&theme=Dark",
+    images: [],
+  },
+  {
     title: "ASCIIRenderer",
     description:
       "Real-time 3D software rasterizer that renders everything as ASCII art in the browser. Built the entire pipeline from scratch in Rust: perspective projection, z-buffering, Blinn-Phong shading. Streams frames over WebSocket at 30+ FPS. Supports 7 shading modes, OBJ/glTF/FBX loading, and per-character RGB texture mapping on Canvas.",
@@ -234,6 +336,36 @@ export const projects = [
     images: [],
   },
   {
+    title: "Evo-Engine",
+    description:
+      "Evolutionary computation framework in Rust implementing GA, Differential Evolution, CMA-ES, and NSGA-II with an island model, a rich operator library, and a benchmark suite for optimization research.",
+    date: "2026",
+    categories: ["AI/ML"],
+    languages: ["Rust"],
+    techs: [],
+    platforms: ["Windows", "Linux"],
+    status: "Completed",
+    git: "https://github.com/CanReader/Evo-Engine",
+    preview:
+      "https://socialify.git.ci/CanReader/Evo-Engine/image?description=1&font=Jost&language=1&name=1&owner=1&pattern=Solid&theme=Dark",
+    images: [],
+  },
+  {
+    title: "Flux",
+    description:
+      "Fast, type-safe HTTP framework for Rust with a focus on compile-time guarantees and ergonomic routing. Built to explore what a minimal, zero-magic web framework should feel like.",
+    date: "2026",
+    categories: ["Backend"],
+    languages: ["Rust"],
+    techs: [],
+    platforms: ["Windows", "Linux"],
+    status: "Completed",
+    git: "https://github.com/CanReader/Flux",
+    preview:
+      "https://socialify.git.ci/CanReader/Flux/image?description=1&font=Jost&language=1&name=1&owner=1&pattern=Solid&theme=Dark",
+    images: [],
+  },
+  {
     title: "ZipRS",
     description:
       "Cross-platform archive manager built with Rust + Tauri v2 + Svelte 5. Handles ZIP, TAR, GZ, BZ2, ZST with drag-and-drop, sortable file tables, and real-time progress. Also ships 15 CLI subcommands for headless use. ~2MB binary, instant startup, zero Electron bloat.",
@@ -261,6 +393,21 @@ export const projects = [
     git: "https://github.com/CanReader/brew-focus",
     preview:
       "https://socialify.git.ci/CanReader/brew-focus/image?description=1&font=Jost&language=1&name=1&owner=1&pattern=Solid&theme=Dark",
+    images: [],
+  },
+  {
+    title: "Rustfm",
+    description:
+      "Fast, modern terminal file manager written in Rust: sidebar with pinned directories and disks, multiple file panels, live syntax-highlighted preview, and task, info, and clipboard panes. Ships with a Catppuccin-on-black default theme, transparency support, and full keyboard-driven navigation.",
+    date: "2026",
+    categories: ["CLI"],
+    languages: ["Rust"],
+    techs: [],
+    platforms: ["Windows", "Linux"],
+    status: "Completed",
+    git: "https://github.com/CanReader/rustfm",
+    preview:
+      "https://socialify.git.ci/CanReader/rustfm/image?description=1&font=Jost&language=1&name=1&owner=1&pattern=Solid&theme=Dark",
     images: [],
   },
   {
@@ -303,7 +450,7 @@ export const projects = [
     techs: [],
     platforms: ["Windows"],
     status: "Completed",
-    git: "https://github.com/CanReader/SnakeTerm",
+    git: "https://github.com/CanReader/SnakeTermRS",
     preview:
       "https://socialify.git.ci/CanReader/SnakeTerm/image?description=1&font=Jost&language=1&name=1&owner=1&pattern=Solid&theme=Dark",
     images: [],
@@ -339,6 +486,19 @@ export const projects = [
     images: [],
   },
 ];
+
+// URL slug for /projects/:slug pages, derived from the title.
+const slugify = (s) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+// Entries with visible:false stay in the data but are excluded everywhere:
+// the projects grid, command palette, detail routes, prerender, and sitemap.
+export const projects = rawProjects
+  .filter((p) => p.visible !== false)
+  .map((p) => ({ slug: slugify(p.title), ...p }));
 
 export const allCategories = [
   "All",
