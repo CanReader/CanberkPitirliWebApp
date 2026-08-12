@@ -1,12 +1,15 @@
 export const categories = ["All", "Graphics", "Game Dev", "Career", "Engineering", "Tutorials"];
 
-export const posts = [
+// Posts with visible:false are drafts: excluded from the blog list, preview,
+// palette, RSS, sitemap, and prerender. Set visible to true (or remove it)
+// and update the date when publishing.
+const rawPosts = [
   {
     slug: "why-i-was-inactive-for-a-while",
     title: "Why I Was Inactive for a While",
     date: "2026-08-06",
     category: "Career",
-    featured: false,
+    featured: true,
     tags: ["Career", "Freelance", "ViewCam", "Unreal Engine"],
     excerpt:
       "The blog went quiet for three months and a few people actually checked if I was okay. I was okay. I was just buried under two jobs, a product launch, a Play Store approval, and a suitcase I need to pack for Japan. Let me explain.",
@@ -73,7 +76,7 @@ Back to writing.`,
     title: "Why C++ Is Still Irreplaceable in Game Development",
     date: "2026-05-07",
     category: "Engineering",
-    featured: true,
+    featured: false,
     tags: ["C++", "Game Dev", "Engineering"],
     excerpt:
       "Every few years someone declares C++ dead and points to Rust, Zig, or some managed language as its replacement. They're wrong, and here's why it matters for game development specifically.",
@@ -1169,4 +1172,721 @@ These are choices. Bad ones. And the fact that they've become industry standard 
 
 I'll take weird and native over normal and bloated.`,
   },
+  {
+    slug: "procedural-terrain-ue5-cpp",
+    title: "Procedural Terrain Generation in UE5 with C++",
+    date: "2026-08-12",
+    category: "Tutorials",
+    featured: false,
+    tags: ["Unreal Engine", "C++", "Procedural"],
+    excerpt:
+      "Slap some noise on a heightmap and you have terrain, right? Then you try to make it deterministic, seamless, fast, and editable by people who don't read C++, and the textbook chapter ends right where your problems begin.",
+    content: `Every terrain tutorial on the internet ends at the same screenshot: a lumpy gray mesh with Perlin noise on it. Congratulations, you have generated a golf course on the moon. The real work starts after that screenshot, and that part is what this post is about.
+
+I've built terrain systems more than once now, for my own engine's voxel sandbox and for Unreal projects, and the same lessons keep repeating. Here's the full picture.
+
+![Seven octaves of fBm, hillshaded. Same seed, same world, every run.](/images/TerrainHillshade.webp)
+
+## The core loop is embarrassingly simple
+
+You sample a noise function over a 2D grid, treat the result as height, and build a mesh from it. Fractal Brownian motion is the workhorse: stack a few octaves of noise, each one double the frequency and half the amplitude of the last.
+
+![Each octave alone looks useless. The sum looks like a horizon.](/images/FbmOctaves.webp)
+
+\`\`\`cpp
+float FBm(FVector2D P, int32 Octaves, float Lacunarity, float Gain)
+{
+    float Sum = 0.0f;
+    float Amplitude = 1.0f;
+    float Frequency = 1.0f;
+    for (int32 i = 0; i < Octaves; ++i)
+    {
+        Sum += Amplitude * FMath::PerlinNoise2D(P * Frequency);
+        Frequency *= Lacunarity;   // usually 2.0
+        Amplitude *= Gain;         // usually 0.5
+    }
+    return Sum;
+}
+\`\`\`
+
+Six octaves of this over a grid, fed into a \`UProceduralMeshComponent\` (or better, the newer \`UDynamicMeshComponent\`), and you have terrain. Twenty minutes of work. Now the actual problems begin.
+
+## Problem one: determinism
+
+If your terrain regenerates differently every run, save games break, multiplayer breaks, and your designers lose the exact mountain they liked yesterday. Every random decision must flow from one seed, and nothing else. That means no \`FMath::RandRange\` sprinkled around, no iteration order that depends on which chunk loaded first, and being very careful with floating point if you ever generate the same world on different machines.
+
+The discipline is simple to state and annoying to keep: one seed goes in at the top, and every function below it is pure. Same inputs, same mountain. Test it by generating a chunk twice and hashing the height data. If the hashes ever differ, you have a bug that will cost you a weekend later.
+
+## Problem two: chunk seams
+
+You cannot generate an open world as one mesh, so you generate tiles. And the moment you have tiles, you have seams. Heights match at the borders automatically, because noise is a pure function of position. Normals do not. Each chunk computes normals from its own triangles, border vertices are missing their neighbors' contribution, and you get a visible lighting crack along every chunk edge.
+
+The fix is to generate one extra ring of height samples around each chunk, a skirt of data you use for normal calculation and then throw away. Cheap, boring, and mandatory. Every terrain system I've written has this, and every one I've debugged that lacked it had visible grid lines at sunset.
+
+## Problem three: doing it fast
+
+Sampling six octaves of noise for a 255x255 chunk is hundreds of thousands of Perlin calls. Do that on the game thread and you just shipped a hitch. The generation itself is trivially parallel, so push it wide:
+
+\`\`\`cpp
+ParallelFor(NumRows, [&](int32 Y)
+{
+    for (int32 X = 0; X < NumCols; ++X)
+    {
+        Heights[Y * NumCols + X] = FBm(ChunkOrigin + FVector2D(X, Y) * Step, 6, 2.0f, 0.5f);
+    }
+});
+\`\`\`
+
+Generate heights on worker threads, build mesh data on worker threads, and only touch the component on the game thread when everything is ready. UE will assert at you if you get this wrong, which is honestly one of the friendlier ways to learn threading rules.
+
+## Problem four: the interface is the product
+
+This is the lesson nobody puts in tutorials. If tuning the terrain means editing C++ constants and recompiling, your teammates will not tune the terrain, and the terrain will look like whatever you left it at 2am. Expose octaves, amplitude, frequency, and curves as editor properties. Make regeneration a button, not a rebuild. The difference between a tech demo and a tool is whether someone who has never seen your code can make a nice valley with it.
+
+A slider that regenerates the world in under a second is worth more than any clever noise variant you could implement instead. Ask me how I know.
+
+## Where to go from here
+
+Once the basics stand: domain warping makes noise stop looking like noise, erosion passes make mountains look like weather happened to them, and a biome layer (a second, low frequency noise picking between parameter sets) turns one endless hill into a world. Each of those is its own post. Start with the boring foundation above, because every fancy technique inherits its bugs from it.`,
+  },
+  {
+    slug: "steam-game-at-14",
+    title: "I Shipped a Steam Game at 14. Here's What the Code Looked Like.",
+    date: "2026-08-12",
+    category: "Career",
+    featured: false,
+    tags: ["Career", "Game Dev", "C++"],
+    excerpt:
+      "Endless Combat is still on Steam. The store page says co-op zombie survival. What it doesn't say is that the gameplay code was written by a teenager who thought header files were a suggestion.",
+    content: `In 2014 I joined Fatalitech Game Studios, a remote team of eight people making a co-op zombie survival game in Unreal Engine. I was fourteen. Two years later, Endless Combat shipped on Steam, where it still lives today. You can go buy it right now, which is either a recommendation or a warning depending on how the rest of this post lands.
+
+People hear "shipped a Steam game at 14" and picture a prodigy. Let me correct the record with evidence.
+
+## The code, honestly
+
+I recently went back through what I remember of that codebase, partly from old files and partly from scars. Highlights:
+
+- There was a class that managed zombies, waves, scoring, sound, and at one point the settings menu. Its name was not GodClass, but it should have been.
+- Everything happened in Tick. Zombie needs to check distance to player? Tick. Every frame. For every zombie. The optimization I later did that cut frame time by 18% was, in large part, making things not do that.
+- I did not trust the garbage collector, the physics engine, or half of the standard library, mostly because I did not know they existed. I trusted global variables. Global variables were my friends.
+- Naming conventions changed roughly every month, which functions as an accidental geological record. You can date any piece of the code by whether things are called \`zombieHP\`, \`ZombieHealth\`, or \`zmb_hlth\`.
+
+None of this is self-deprecation for sport. This is what learning in production looks like when you're a kid with no senior around, and the internet's tutorials in 2014 were a YouTube video of a man breathing into a microphone for forty minutes.
+
+## What shipping taught me that cleanliness couldn't
+
+Here's the uncomfortable part for everyone who sorts their headers alphabetically: the game shipped. People bought it. Friends played it together and had fun in a thing I helped make. The spaghetti served actual dinner.
+
+I learned more from that mess reaching real players than I would have from three years of writing beautiful code nobody ran. Specifically:
+
+Shipping forces a definition of done. Before Steam, "done" meant I got bored. After, done meant a stranger in another country could install it, play it, and not refund it within two hours.
+
+Performance problems are invisible until they aren't. On my PC everything ran fine. On the minimum spec machine of an actual customer, my Tick festival was a slideshow. That 18% frame time win wasn't cleverness, it was the first time I profiled anything, found the obvious crime, and stopped committing it.
+
+And working with seven other people remotely, as a teenager, taught me that the hard part of software is rarely the software. It's writing a message that explains what you changed and why, at an hour when the other person is asleep in a different timezone.
+
+## Would I recommend it
+
+If a fourteen year old asked me whether they should join a real project instead of grinding tutorials: yes, immediately, and don't wait until you feel ready, because that feeling is not scheduled to arrive.
+
+Your code will be terrible. Ship it anyway. The terribleness fades with every project; the shipped thing is permanent. Mine is still on Steam, ten years later, quietly holding the receipts of everything I didn't know. I'm honestly fond of it, the way you're fond of your worst school photo. That's me. That's where it started.`,
+  },
+  {
+    slug: "viewcam-devlog-chasing-milliseconds",
+    title: "ViewCam Devlog: Chasing Milliseconds from Phone Camera to Zoom",
+    date: "2026-08-10",
+    category: "Engineering",
+    featured: false,
+    tags: ["ViewCam", "C++", "Kotlin", "Performance"],
+    excerpt:
+      "A virtual webcam that lags is worse than no webcam at all. Here's the latency budget of ViewCam's pipeline, where the milliseconds actually hide, and the embarrassingly analog way I measure them.",
+    content: `ViewCam turns your phone into a wireless webcam, microphone, and speaker for your PC. The whole product lives or dies on one number: how long a frame takes to travel from the phone's camera sensor to the video call on your monitor. Get that under roughly 150 milliseconds and nobody notices anything. Miss it and your lips move like a badly dubbed movie.
+
+This post is the actual pipeline and where the time goes.
+
+![The ViewCam pipeline](/images/ViewCam2.webp)
+
+## The budget
+
+A frame passes through five stages, and every one of them wants a piece of your latency budget:
+
+- **Capture.** CameraX hands you frames on Android. You don't control the sensor timing; at 30fps you already ate up to 33ms just waiting for the next frame to exist.
+- **Encode.** Hardware H.264 via MediaCodec. Fast, but only if you use it asynchronously and never, ever wait on it. The synchronous API is a latency trap with friendly documentation.
+- **Network.** Local Wi-Fi is quick but moody. The transit itself is a few milliseconds; the variance is what kills you.
+- **Decode.** FFmpeg on the desktop side, in C++. Cheap for 1080p on any modern machine, single digit milliseconds.
+- **Handoff.** The decoded frame goes into the virtual camera device, DirectShow on Windows and v4l2loopback on Linux, and then the video app consumes it on its own schedule, which you do not control and which will hurt you.
+
+Notice that the two biggest items, capture cadence and consumer timing, are the two you can't optimize. Welcome to latency work: most of your budget is spent by other people.
+
+## Buffering, the seductive enemy
+
+Every buffering decision is the same trade: smoothness now, latency forever. A jitter buffer of three frames makes shaky Wi-Fi look silky and adds 100ms at 30fps. That is your entire budget spent on insurance.
+
+ViewCam's rule is aggressive: buffer as close to zero as survivable, and when the network hiccups, drop frames instead of queueing them. A dropped frame is invisible, a growing queue is lag that compounds. The corollary rule matters even more: when frames arrive late and a queue forms anyway, skip to the newest frame. Real time beats complete. Nobody on a call has ever complained that they missed frame 4571.
+
+## Measuring glass to glass
+
+You cannot trust internal timestamps, because they conveniently omit everything outside your process, which includes the phone's camera stack and the video app's own rendering. So I measure the honest way: put a millisecond stopwatch on a screen, point the phone at it, join a call, and photograph both screens together. The difference between the two clocks in one photo is the true glass to glass number. It is analog, slightly ridiculous, and it does not lie.
+
+If you're building anything real time, build this measurement first, before optimizing anything. My internal numbers said one thing; the stopwatch said 60ms more. The missing time lived in places no profiler I had could see.
+
+## The part nobody warned me about
+
+Reconnection is a latency feature. When Wi-Fi drops for two seconds and comes back, the amateur version dutifully delivers two seconds of stale frames before showing you the present. The correct behavior is brutal: throw away everything, resynchronize on the newest keyframe, act like the past never happened. Users experience a brief freeze and then normality. The alternative is a call where you're permanently two seconds in the past like a badly configured time traveler.
+
+Since launch, most of my update time has gone into exactly these unglamorous edges: reconnects, frame pacing, encoder quality settings. It turns out shipping the pipeline is the easy part. Making it boring and reliable is the product. ViewCam is at viewcam.tech if you want to see how boring and reliable feels in practice.`,
+  },
+  {
+    slug: "virtual-camera-directshow-vs-v4l2loopback",
+    title: "Writing a Virtual Camera: DirectShow vs v4l2loopback",
+    date: "2026-08-08",
+    category: "Engineering",
+    featured: false,
+    tags: ["C++", "Windows", "Linux", "ViewCam"],
+    excerpt:
+      "To make Zoom believe your app is a webcam, you have to convince two very different operating systems. One asks for a COM object registered in the registry. The other asks you to politely write frames into a file. Guess which one took a week.",
+    content: `Building ViewCam meant solving a problem most app developers never touch: making the operating system believe a camera exists when there is no camera. Every video app, Zoom, Meet, OBS, Discord, asks the OS for a list of capture devices. Your job is to be on that list and to serve frames when picked. Windows and Linux solve this in ways so different they're barely the same problem.
+
+![Same feature, two worlds: a kernel module and three syscalls, or a COM object living inside zoom.exe](/images/VirtualCameraPaths.webp)
+
+## Linux: v4l2loopback, the civilized option
+
+On Linux there's a kernel module called v4l2loopback that creates a virtual Video4Linux device. You load it, you get \`/dev/video2\`, and any V4L2 frame you write into it comes out the other side in every app that enumerates cameras.
+
+Your entire job on the application side:
+
+\`\`\`cpp
+int fd = open("/dev/video2", O_WRONLY);
+// negotiate format once with VIDIOC_S_FMT (e.g. YUYV, 1280x720)
+write(fd, frameData, frameSize);   // one frame in, one frame out
+\`\`\`
+
+Set the pixel format with one ioctl, then write frames. That's the core of it. There are real details around format negotiation and what each consumer app tolerates, but the architecture is a pipe with a costume on. I had a working Linux virtual camera in an afternoon and spent the rest of the week thinking something must be wrong because it couldn't be this easy.
+
+The honest downsides: it's an out-of-tree kernel module, so users must install it, and every kernel update is a small opportunity for adventure. Packaging that experience nicely is most of the actual work.
+
+## Windows: DirectShow, the archaeology dig
+
+Windows has no "just write frames here" device. To be a camera, you implement a DirectShow source filter: a COM object, in C++, implementing interfaces designed in the late nineties, registered system-wide in the registry under the video input device category. Zoom asks DirectShow for cameras, DirectShow reads the registry, finds your CLSID, instantiates your DLL inside the calling process, and starts pulling frames from your output pin.
+
+Read that again: your code runs inside Zoom's process. Every consumer app becomes a host for your filter, with its own quirks about which resolutions it accepts, which pixel formats it prefers, and how it negotiates media types. When something breaks, it breaks inside someone else's executable, and your debugging story starts with attaching to Zoom.
+
+The rites of passage, in the order they will hurt you:
+
+- COM reference counting by hand. Get \`AddRef\`/\`Release\` wrong and you leak forever or crash on exit, and the crash is in the host app, hours later.
+- Media type negotiation. You offer formats, the app picks one, except some apps ask for the list in a different order and some just take the first thing offered. Offer plain formats first. Exotic first impressions get you a black rectangle.
+- Registration. \`regsvr32\`, admin rights, 32 and 64 bit registry views. Half of "the camera doesn't show up" reports trace back to registration, which is why the installer matters as much as the filter.
+
+There's a newer path on Windows 11, Media Foundation virtual cameras, with an actual supported API. It's genuinely better, and the moment your minimum OS is Windows 11 you should use it. ViewCam still ships DirectShow because users on Windows 10 exist in large numbers and they also have meetings.
+
+## What this taught me
+
+The same feature, a virtual webcam, is one honest afternoon on Linux and a week of COM archaeology on Windows. Neither platform is wrong, exactly. Linux trusts you with a kernel module and lets userspace be simple. Windows keeps the kernel far away and pushes the complexity into a 25 year old plugin model instead.
+
+If you're building anything similar: do Linux first. Not because it ships first, but because it lets you validate the whole pipeline, capture, encode, transport, decode, while the virtual camera part is trivially simple. Then port the last mile to Windows when everything else already works, so that when the black rectangle appears, and it will, you at least know which layer is lying to you.`,
+  },
+  {
+    slug: "handwritten-cuda-vs-pytorch",
+    title: "Hand-Written CUDA vs PyTorch: Honest Benchmarks from Building FastNN",
+    date: "2026-04-29",
+    category: "Engineering",
+    featured: false,
+    tags: ["Rust", "CUDA", "AI/ML", "Performance"],
+    excerpt:
+      "I wrote a deep learning framework from scratch in Rust with hand-tuned CUDA kernels, benchmarked it against PyTorch, and I'm publishing the numbers including the ones that don't flatter me.",
+    content: `FastNN is my deep learning framework: Rust on the outside, hand-written CUDA on the inside, no PyTorch or TensorFlow anywhere underneath. Tape-based autodiff, RAII GPU memory, layers up to full Transformers. I built it to find out what the big frameworks actually cost you, and this post is the honest scorecard.
+
+Spoiler for the impatient: on raw matrix operations FastNN lands within about 15% of PyTorch while using roughly 40% less VRAM. Both halves of that sentence deserve scrutiny, so here's the scrutiny.
+
+## Benchmark honestly or don't bother
+
+Most framework benchmarks on the internet are broken in one of three ways, and I know because I committed all three before building TensorBench, my benchmarking suite, specifically to stop myself:
+
+- **No warmup.** The first CUDA call pays for context setup and kernel compilation. Time it and you're measuring initialization, not compute. Warm up for dozens of iterations, then measure.
+- **No synchronization.** CUDA launches are asynchronous. Timing a launch without \`cudaDeviceSynchronize\` measures how fast the CPU can ask for work, which is a very impressive number that means nothing.
+- **One run, no variance.** GPU clocks move with temperature. TensorBench runs everything repeatedly and reports confidence intervals, because a single number without spread is a mood, not a measurement.
+
+Every number below survived those three rules.
+
+![The headline numbers: close on big matmuls, honest gap on small ones, and the VRAM win.](/images/FastNNBench.webp)
+
+## Where I get close to PyTorch
+
+Large dense matmuls. This sounds like a win until you know the secret: for big GEMMs, everybody, including me, calls cuBLAS, because NVIDIA's own kernels are effectively unbeatable by mortals. With TF32 tensor cores enabled on Ampere and later, my matmul path sits close enough to PyTorch that the difference is scheduling overhead and my thinner dispatch layer. A framework that stays out of cuBLAS's way inherits most of its speed for free.
+
+The memory result is the part I'm actually proud of. PyTorch is generous with workspace allocations and its caching allocator holds memory optimistically. FastNN's RAII approach frees exactly when tensors die and preallocates exactly what the graph needs. Same models, roughly 40% less VRAM. On a consumer GPU that's the difference between a batch size that trains and an OOM at 3am.
+
+## Where PyTorch quietly destroys me
+
+Everything fused. A chain like bias add, GELU, dropout is three separate kernel launches in naive FastNN, three round trips through global memory. PyTorch's compiled paths fuse them into one kernel. On memory-bound layer stacks that's not a 15% gap, it's 2x or worse, in their favor. I've hand-fused my most common sequences, but they have compiler infrastructure and a decade of engineers; I have evenings.
+
+Also convolutions with weird shapes. cuDNN carries a lookup of algorithms per shape and picks the winner. My conv2d has a handful of code paths chosen by rules I wrote after a weekend of profiling. On common shapes I'm respectable. On odd strides and tiny channels, cuDNN laughs at me.
+
+## What I actually learned
+
+The big frameworks are not slow, and anyone selling you "10x faster than PyTorch" is benchmarking wrong, usually via one of the three sins above. What the big frameworks are is general, and generality has a memory bill and a dispatch bill. If you control your architecture, a specialized stack claws back real VRAM and real predictability.
+
+But the deepest lesson: writing the framework taught me more about why PyTorch makes its choices than five years of using it did. Every "why is this API like this" now has an answer, and the answer is usually a wall I also hit, two weeks later, at higher speed. The code is on my GitHub if you want to check my homework.`,
+  },
+  {
+    slug: "unreal-plugin-from-empty-folder",
+    title: "Building an Unreal Engine Plugin in C++, From Empty Folder to Distributable",
+    date: "2026-02-21",
+    category: "Tutorials",
+    featured: false,
+    tags: ["Unreal Engine", "C++", "Tooling"],
+    excerpt:
+      "Everything reusable I write for Unreal now starts life as a plugin, not a project. Here's the anatomy of one: modules, Build.cs, export macros, editor-only code, and the packaging step everyone gets wrong first.",
+    content: `At some point every Unreal developer writes something worth reusing, copies the folder into the next project, and creates a maintenance problem with a two year fuse. The fix is to build reusable code as a plugin from day one. It costs an hour of setup and pays for itself the first time a second project needs the thing.
+
+Here's the whole anatomy, with the sharp edges labeled.
+
+## The skeleton
+
+A plugin is a folder in \`Plugins/\` with a \`.uplugin\` manifest and one or more modules:
+
+\`\`\`json
+{
+  "FileVersion": 3,
+  "FriendlyName": "MyTools",
+  "Version": 1,
+  "Modules": [
+    { "Name": "MyTools", "Type": "Runtime", "LoadingPhase": "Default" },
+    { "Name": "MyToolsEditor", "Type": "Editor", "LoadingPhase": "PostEngineInit" }
+  ]
+}
+\`\`\`
+
+Two modules, and this split is the single most important decision in the file. \`Runtime\` is what ships in the game. \`Editor\` is the tooling: details panel customizations, editor buttons, asset actions. Mix them into one module and your packaged build will fail late, at the worst time, with linker errors about UnrealEd, because editor modules simply do not exist in shipped games.
+
+![The dependency rules in one picture. The dashed red arrow is the Friday linker error.](/images/PluginModules.webp)
+
+## Build.cs, where dependencies live
+
+Each module gets a \`Build.cs\` declaring what it uses:
+
+\`\`\`cpp
+public class MyTools : ModuleRules
+{
+    public MyTools(ReadOnlyTargetRules Target) : base(Target)
+    {
+        PublicDependencyModuleNames.AddRange(new string[]
+            { "Core", "CoreUObject", "Engine" });
+        PrivateDependencyModuleNames.AddRange(new string[]
+            { "Projects" });
+    }
+}
+\`\`\`
+
+The Public versus Private distinction is not decoration. Public dependencies leak into everyone who depends on you; Private stays internal. Keep the public list minimal like you keep a header's includes minimal, and for the same reason: everything you expose becomes someone else's rebuild time.
+
+The error you will meet first: unresolved external symbol for some engine class. Ninety percent of the time the fix is adding that class's module to this list. Learn to read which module owns a type from the docs header path, and \`Build.cs\` errors become five second fixes instead of forum expeditions.
+
+## The export macro nobody explains
+
+Classes and functions used from outside your module need the module API macro:
+
+\`\`\`cpp
+class MYTOOLS_API FMyThing
+{
+public:
+    void DoUsefulWork();
+};
+\`\`\`
+
+\`MYTOOLS_API\` expands to dllexport or dllimport depending on who's compiling. Forget it and everything works fine right up until another module calls your code, at which point the linker delivers the news. The macro name is always your module name, uppercased, plus \`_API\`. Unreal generates it; you just have to remember it exists.
+
+## Packaging, the part everyone fails once
+
+A plugin that compiles inside your project is not yet distributable. The real test:
+
+\`\`\`
+RunUAT.bat BuildPlugin -Plugin="MyTools.uplugin" -Package="C:/Out/MyTools" -TargetPlatforms=Win64
+\`\`\`
+
+This compiles your plugin against a clean engine, outside your project, exactly the way another team would consume it. It will find every sin: the editor include inside a runtime file that happened to work because of unity builds, the dependency you use but never declared because some other module dragged it in, the header that includes the world. Run it early, run it often. A plugin that has never survived BuildPlugin is a plugin that works on your machine, which is a sentence with a famous ending.
+
+## Small habits that separate real plugins from folders with a manifest
+
+Namespace your console variables and log categories with the plugin name, because in a real project there are forty plugins and grep is the debugger of last resort. Keep a tiny example map or test in the plugin so a stranger can verify it works in five minutes. Version the \`.uplugin\` honestly. None of this is glamorous. All of it is the difference between a tool other people adopt and a zip file you email around with instructions.`,
+  },
+  {
+    slug: "deferred-vs-forward-rendering",
+    title: "Deferred vs Forward Rendering: When Each One Actually Wins",
+    date: "2026-01-11",
+    category: "Graphics",
+    featured: false,
+    tags: ["Graphics", "Rendering", "DirectX 11"],
+    excerpt:
+      "Students ask me this every month, so here's the answer I actually give: the whole debate is one question about where you pay for lights, and your content answers it for you.",
+    content: `Deferred versus forward is the first real architecture decision in any renderer, and it gets discussed like a religious war when it's actually one accounting question: when do you pay for lighting, and what do you multiply it by? I've implemented both, I teach both in my DirectX 11 course, and here's the version of this discussion that fits in one honest post.
+
+## Forward: shade while you draw
+
+Forward rendering is the obvious approach. For every object, run the vertex shader, and in the pixel shader compute the final color right there, looping over the lights that affect it. Cost scales with objects times lights, and pixels behind other pixels can pay full lighting cost for the privilege of being overwritten a millisecond later. Overdraw plus many lights is where forward goes to die.
+
+But forward keeps three superpowers everyone forgets while dunking on it. Hardware MSAA just works, which is why VR titles love it. Transparency just works, because there's a real blend into a real framebuffer. And every material can use a completely different shading model, because nothing forces your surface data through a shared format.
+
+## Deferred: shade once you know what's visible
+
+Deferred splits the frame in two. First pass, draw all geometry but compute no lighting; instead write surface properties, albedo, normal, roughness, depth, into a set of screen-sized textures called the G-Buffer. Second pass, walk the screen once and light only what actually survived the depth test.
+
+![A G-Buffer, laid open: albedo, normals, depth, and the lighting pass that combines them.](/images/GBufferBreakdown.webp) Lighting cost stops caring about scene complexity entirely: it's pixels times lights, and with light volumes it's not even all pixels per light.
+
+That's the whole trick, and it's a great trick. A thousand torches in a night scene stops being a joke budget item. Every serious dynamic-light-heavy game of the last fifteen years leaned on some version of this.
+
+The bill arrives in bandwidth. A fat G-Buffer at 4K is a lot of gigabytes per second of writing and re-reading, and mobile GPUs in particular respond to that the way you'd respond to a rent increase. MSAA becomes somewhere between painful and fictional, so you buy TAA and its smearing artifacts instead. Transparency doesn't fit at all, which is why every deferred renderer contains a small guilty forward renderer for glass and particles. And all materials must squeeze through the same G-Buffer channels, so exotic shading models cost encoding gymnastics.
+
+## The actual decision procedure
+
+Forget the discourse and ask three questions about your content.
+
+How many dynamic lights genuinely matter per frame? A handful: forward is simpler and faster. Dozens to hundreds: deferred, or at least clustered forward.
+
+Do you need MSAA? VR says yes, in which case forward, full stop, this is why UE's VR template ships a forward renderer. Flat screen with TAA acceptable: deferred stays on the table.
+
+How wild are your materials? Stylized projects with a rainbow of custom shading models fight the G-Buffer forever. Physically based and uniform: the G-Buffer fits like it was made for you, because it was.
+
+## The modern footnote
+
+Forward+ and clustered forward split the screen into tiles or 3D clusters, build per-cluster light lists in a compute pass, and then shade forward style but looping only over each pixel's relevant lights. You keep MSAA, transparency, and material freedom, and you scale to many lights. It costs implementation complexity, but it's telling that a lot of new engines start there: the old binary has become a spectrum, and the right answer for a new renderer in 2026 is usually somewhere in the middle of it.
+
+If you want the from scratch version of both pipelines with real HLSL, that's several hours of my DirectX 11 course, but the mental model above is the part that transfers to every engine you'll ever touch.`,
+  },
+  {
+    slug: "cmake-for-game-developers",
+    title: "CMake for Game Developers Who Hate CMake",
+    date: "2025-12-13",
+    category: "Engineering",
+    featured: false,
+    tags: ["C++", "CMake", "Tooling"],
+    excerpt:
+      "You don't need to like CMake. You need the 20% of it that makes C++ builds boring and reliable, and permission to ignore the rest. This is that 20%, learned from building an engine with it.",
+    content: `Nobody loves CMake. You learn CMake the way you learn tax law: reluctantly, under threat, and only the parts that apply to you. I've built SleakEngine and a pile of C++ projects with it, and the honest secret is that modern CMake is fine if you follow a few rules and treat everything written before 2018 as a hazard. Tutorials from the old era teach patterns that actively hurt you.
+
+Here is the entire useful core.
+
+## Rule one: targets, not variables
+
+Old CMake was people mutating global variables like \`CMAKE_CXX_FLAGS\` and praying. Modern CMake has one idea worth learning: everything hangs off a target.
+
+\`\`\`cmake
+add_library(engine_core STATIC \${CORE_SOURCES})
+target_include_directories(engine_core PUBLIC include)
+target_compile_features(engine_core PUBLIC cxx_std_23)
+target_link_libraries(engine_core PRIVATE spdlog::spdlog)
+
+add_executable(game \${GAME_SOURCES})
+target_link_libraries(game PRIVATE engine_core)
+\`\`\`
+
+Every property attaches to a specific target, and the magic word is the visibility keyword. PRIVATE: I use this, my consumers don't inherit it. PUBLIC: I use it and so does everyone linking me. INTERFACE: only my consumers get it. Get these right and dependencies flow through your project automatically; \`game\` up there gets \`engine_core\`'s include path and C++23 requirement without asking. Get them wrong, or use the ancient keyword-less form, and you're back to global soup where touching one flag rebuilds the universe and nobody knows why.
+
+If you take a single thing from this post: never set a global when a \`target_*\` command exists. That's 60% of CMake competence in one sentence.
+
+![How PUBLIC flows through the graph and PRIVATE doesn't](/images/CMakeVisibility.webp)
+
+## Rule two: FetchContent ends the dependency saga
+
+Third party libraries used to mean git submodules, vendored zip archives, or a wiki page titled "Setting Up Your Machine, 14 Steps". Modern answer:
+
+\`\`\`cmake
+include(FetchContent)
+FetchContent_Declare(glfw
+  GIT_REPOSITORY https://github.com/glfw/glfw.git
+  GIT_TAG 3.4)
+FetchContent_MakeAvailable(glfw)
+target_link_libraries(game PRIVATE glfw)
+\`\`\`
+
+Clone, configure, build. On any machine, including CI, including your teammate's laptop, including yours after the reinstall. For bigger dependency graphs vcpkg or Conan earn their complexity, but FetchContent covers the typical game project with zero extra tooling, and pinning a tag means builds stay reproducible.
+
+## Rule three: presets end the README incantations
+
+The \`CMakePresets.json\` file replaces the folk knowledge of which flags to configure with:
+
+\`\`\`json
+{
+  "version": 6,
+  "configurePresets": [
+    { "name": "dev",  "generator": "Ninja",
+      "binaryDir": "build/dev",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" } },
+    { "name": "ship", "generator": "Ninja",
+      "binaryDir": "build/ship",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" } }
+  ]
+}
+\`\`\`
+
+Now the entire onboarding document is \`cmake --preset dev\`. Your IDE reads the same file. CI reads the same file. When the flags change, they change in one place, instead of in six READMEs and one person's memory.
+
+## The permitted ignorance list
+
+Part of hating CMake less is knowing what you're allowed to skip. You do not need generator expressions beyond maybe \`$<CONFIG:Debug>\`. You do not need to write find modules. You do not need install rules or CPack until you ship an SDK to strangers. You especially do not need the macro metaprogramming you saw in that one repository; whoever wrote it is either a genius or being punished, and from outside you can't tell.
+
+Targets with correct visibility, FetchContent with pinned tags, presets for the flags. That's the whole religion. It won't make you love CMake, but it will make your builds so boring you forget CMake exists, and boring is the highest compliment a build system can earn.`,
+  },
+  {
+    slug: "one-engine-four-graphics-backends",
+    title: "One Engine, Four Graphics Backends: What I'd Do Differently",
+    date: "2025-10-05",
+    category: "Engineering",
+    featured: false,
+    tags: ["Engine Dev", "Graphics", "C++", "Vulkan"],
+    excerpt:
+      "SleakEngine runs DirectX 11, DirectX 12, Vulkan, and OpenGL behind one abstraction layer. Building that taught me exactly why nobody should build that. A postmortem in advance.",
+    content: `SleakEngine, my from scratch C++23 engine, renders through four backends: DirectX 11, DirectX 12, Vulkan, and OpenGL, all behind a single RHI, one rendering interface the rest of the engine talks to. It works. A real voxel game runs on it. And if I started over tomorrow, I would not build it this way. This is the postmortem I'm writing before the project is dead, which feels efficient.
+
+![What one innocent Draw call costs on each backend](/images/RHIBackends.webp)
+
+## Why four backends is a trap with great marketing
+
+On paper it's beautiful: write the renderer once, run anywhere, learn every API deeply. The last part came true, and I recommend it as an education. The first part is where the trap lives, because these four APIs disagree about the fundamental shape of the world.
+
+DX11 and OpenGL are state machines: bind things, draw, the driver does heroic work behind your back. DX12 and Vulkan are explicit: you build pipeline state objects up front, record command buffers, manage descriptor memory, and schedule synchronization yourself, because the driver has resigned from hero duty.
+
+An abstraction over all four must pick a personality, and every choice betrays someone. Mine looked like DX11, because that's what I knew best when I started. The DX11 and GL backends were thin and happy. The DX12 and Vulkan backends became emulators, reconstructing pipelines and barriers at runtime from state-machine-style calls, caching PSOs behind the API's back, guessing synchronization conservatively. Conservative barriers are correct and slow, which means my most modern backends ran with the least modern performance. The abstraction didn't hide complexity. It relocated it into the two places least able to afford it.
+
+## The costs nobody prices in
+
+Shaders multiply. One RHI means one shader story across HLSL and GLSL dialects, so you either write everything twice or build a cross compilation pipeline. I did the pipeline, HLSL through SPIR-V and back out. It works and it is its own small project with its own bug tracker in my heart.
+
+Testing multiplies harder. Four backends times features times GPU vendors is a matrix you cannot actually cover alone. My honest confidence was always: two backends well tested, two backends probably fine. "Probably fine" is engine speak for "broken on AMD".
+
+And the feature floor sinks to the weakest API. Bindless resources, mesh shaders, modern synchronization: available in Vulkan and DX12, and unusable in the common interface, because the interface must also be implementable on the APIs from 2009. The lowest common denominator isn't a compromise, it's a ceiling.
+
+## What I'd actually do now
+
+Two backends, not four. Vulkan and DX12 only, and design the RHI in their image: explicit pipelines, explicit barriers as first class citizens, descriptor sets as the native binding model. Old APIs emulate the modern shape far more gracefully than modern APIs emulate the old one, and if I truly needed a legacy path later, that's the direction to bridge.
+
+A render graph from day one. Declare passes and their resource dependencies, and let the graph derive barriers, layouts, and transient memory. Synchronization stops being a thousand hand-placed decisions and becomes one algorithm. Every hour I spent hand-debugging a missing Vulkan barrier was an hour arguing for this, and it took me too long to listen.
+
+And honestly: for anyone whose goal is shipping a game rather than learning APIs, one backend. Vulkan plus one good compatibility layer, or just DX12 on PC. The multi-backend engine is a graduate program disguised as an architecture decision. I'm glad I attended. I graduated with opinions and I'm never enrolling again.`,
+  },
+  {
+    slug: "ue5-behavior-trees-observer-aborts",
+    title: "Behavior Trees in UE5: C++ Tasks, Decorators, and the Observer Abort Nobody Understands",
+    date: "2025-06-17",
+    category: "Game Dev",
+    featured: false,
+    tags: ["Unreal Engine", "C++", "Game AI"],
+    excerpt:
+      "Every UE5 AI tutorial stops right before the part that makes enemies feel alive: observer aborts. I shipped behavior tree AI in a commercial VR game, and this is the explanation I wish someone had given me.",
+    content: `Behavior trees are how most Unreal games think. I built enemy AI with them for The Stranger, a shipped VR title, and I keep seeing the same learning curve in every developer who touches them: the basics land in an afternoon, and then observer aborts eat a week. This post is the afternoon and the week, compressed.
+
+![A stealth guard's whole brain. The orange node is executing; the dashed line is the abort that makes it feel alive.](/images/BehaviorTree.webp)
+
+## The mental model in ninety seconds
+
+A behavior tree runs from the root every time it needs a decision. Selectors try children left to right until one succeeds; they're the "or". Sequences run children left to right until one fails; they're the "and". Tasks are leaves that actually do things: move here, play this animation, wait.
+
+The tree above is a whole stealth guard: attack if you can see the player, search if you heard something, otherwise patrol. Priority isn't a number you tune, it's literally the left to right order under the selector. This is why designers can read behavior trees: the layout is the logic.
+
+The blackboard is the tree's memory, a bag of named keys like \`TargetActor\` or \`LastKnownLocation\`. Perception writes into it, the tree reads from it. Keep it that way around: senses write, tree reads, and the data flow stays debuggable at 2am.
+
+## C++ tasks, because Blueprint has a ceiling
+
+Blueprint tasks are great until an AI-heavy scene puts thirty of them on screen. A C++ task is faster and, more importantly for a shipped game, versionable and reviewable:
+
+\`\`\`cpp
+UCLASS()
+class UBTTask_PickSearchPoint : public UBTTaskNode
+{
+    GENERATED_BODY()
+
+    virtual EBTNodeResult::Type ExecuteTask(
+        UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override
+    {
+        auto* BB = OwnerComp.GetBlackboardComponent();
+        const FVector LastKnown =
+            BB->GetValueAsVector(TEXT("LastKnownLocation"));
+
+        FNavLocation Result;
+        auto* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+        if (!NavSys || !NavSys->GetRandomReachablePointInRadius(LastKnown, 600.f, Result))
+        {
+            return EBTNodeResult::Failed;
+        }
+
+        BB->SetValueAsVector(TEXT("SearchPoint"), Result.Location);
+        return EBTNodeResult::Succeeded;
+    }
+};
+\`\`\`
+
+Return \`Succeeded\` or \`Failed\` for instant work. Return \`InProgress\` for anything that takes time, and then you are obligated to call \`FinishLatentTask\` later. Forget that and the tree waits politely forever, which in playtest terms is "the guard is staring at a wall again".
+
+## Observer aborts, the part that makes AI feel alive
+
+Here's the problem the basics leave you with. Your guard is deep in the patrol branch, walking between waypoints. The player steps out directly in front of him. A naive tree finishes the current task first, so the guard completes his stroll to the next waypoint, then turns around and notices you. Comedy, not menace.
+
+Decorators fix this, but only if you understand that a decorator is not an if statement. It's a condition that can keep watching after the decision was made. That's the "observer" in observer aborts. On any decorator, like a Blackboard check on \`TargetActor\`, you set Observer Aborts to one of:
+
+- **None**: checked once on entry, never again. The comedy guard.
+- **Self**: if the condition turns false while this branch runs, abort this branch. "Stop attacking when you lose the target."
+- **Lower Priority**: if the condition turns true while some branch to the right runs, kill that branch and jump here. "Stop patrolling the instant you see him."
+- **Both**: both of the above.
+
+The names confuse everyone because they describe what gets aborted, not what you're reacting to. The dashed red arrow in the diagram is Lower Priority doing its job: perception sets \`TargetActor\`, the attack branch's decorator is observing, patrol dies mid-step, and the guard snaps to combat in the same frame. That snap is the entire difference between AI that follows a flowchart and AI that feels like it wants something.
+
+One shipped-game warning to close: observer aborts fire on blackboard writes, so a value that flickers, like a target that rapidly enters and leaves perception, will thrash your tree with aborts and restarts. Debounce at the perception layer, give sight a few hundred milliseconds of memory before clearing the key. Your frame time and your guard's dignity will both thank you.`,
+  },
+  {
+    slug: "occlusion-culling-20-percent-vr",
+    title: "Occlusion Culling: How I Got 20% of the Frame Back in a Shipped VR Game",
+    date: "2025-05-20",
+    category: "Graphics",
+    featured: false,
+    tags: ["Graphics", "VR", "Unreal Engine", "Performance"],
+    excerpt:
+      "The fastest draw call is the one you never make. On The Stranger, a VR horror game, culling what the player provably couldn't see bought us back a fifth of the frame. Here's how that works and why VR makes it hard.",
+    content: `On a flat screen game, a dropped frame is a stutter. In VR, it's a stomach event. The Stranger was a VR horror title, which meant we had to render every scene twice, once per eye, at 90 frames per second, on hardware our players actually owned. The frame budget wasn't tight, it was hostile. The single biggest win we found was a custom occlusion culling system, worth roughly 20% of rendering time. This post is the thinking behind it.
+
+## The fastest work is no work
+
+Frustum culling everyone knows: don't draw what's outside the camera's view cone. Occlusion culling is the harder sibling: don't draw what's inside the view cone but hidden behind other things. In an indoor game, that's most of the level. The player stands in a corridor; the eight rooms behind these walls are inside the frustum and completely invisible.
+
+![Left: the frame. Right: overdraw heat. Everything yellow and red behind the wall was shaded for nothing.](/images/OcclusionOverdraw.webp)
+
+Without occlusion culling, all of that geometry gets vertex shaded, rasterized, and then murdered by the depth test, pixel by pixel, after the GPU already paid for it. The depth buffer makes the image correct. It does not make it cheap. The goal is for hidden objects to never enter the pipeline at all: no draw call, no state changes, no vertex work, nothing.
+
+## Why the built-in tools weren't enough for VR
+
+Unreal ships hardware occlusion queries: render conservative bounding boxes against last frame's depth, ask the GPU what survived, skip those objects next frame. It's a genuinely good general solution with two problems that VR turns from footnotes into headlines.
+
+First, latency. Query results arrive a frame late, so visibility is always slightly stale. Turn your head fast, and an object that just became visible hasn't been drawn yet: a pop. On a monitor you barely register it. In a headset, where your brain treats the image as reality, a wall blinking into existence is exactly the kind of thing horror games want to do on purpose and absolutely not by accident.
+
+Second, the queries themselves cost GPU time per frame, per eye, in the exact frames you're trying to rescue. Paying rendering time to learn what not to render is a fine trade until the margin is thin, and at 90hz times two eyes, the margin is always thin.
+
+## Precomputed visibility: pay at build time, not at runtime
+
+Our layout was the classic horror setup, rooms, corridors, doorways, and that structure is a gift. When the level is made of enclosed spaces connected by small openings, visibility barely depends on the exact camera position, it depends on which space you're in. So you move the expensive question offline: divide the level into cells, compute ahead of time which cells can possibly be seen from each cell, and store the answers.
+
+At runtime the algorithm becomes almost embarrassing: look up the current cell, draw its visible set, done. Costs nanoseconds, works identically for both eyes, and never pops, because the answer was computed conservatively before the player ever put on the headset. The precomputation errs on the side of "might be visible", so the worst case is drawing slightly too much, never drawing too little. In VR that asymmetry is everything: too much is a few wasted draw calls, too little is a hole in reality.
+
+That's the shape of what shipped, tuned and special-cased around our levels' geometry, with the doorways doing the heavy lifting as natural portals between spaces.
+
+## What it bought and what it cost
+
+Around 20% of rendering time back, which at our budget was the difference between holding the headset's native rate and living in reprojection. The cost was honesty about constraints: this approach works because the levels are rooms and corridors. An open field would have laughed at our cells. Level designers also had to live with light rules about what counts as an occluder, because the precomputation trusted walls to be walls.
+
+The transferable lesson isn't the specific technique, it's the priority order. Before optimizing any shader, ask what you're rendering that nobody can see. The fastest draw call is the one that never happens, and in most indoor scenes, that's a shockingly large fraction of everything.`,
+  },
+  {
+    slug: "rendering-equation-to-hlsl",
+    title: "The Rendering Equation, From Scary Integral to HLSL",
+    date: "2026-08-11",
+    category: "Graphics",
+    featured: false,
+    tags: ["Graphics", "HLSL", "PBR", "Math"],
+    excerpt:
+      "Every PBR shader you've ever written is one integral wearing a trench coat. Here's the rendering equation term by term, the Cook-Torrance BRDF that lives inside it, and the exact HLSL each symbol turns into.",
+    content: `Every semester, the same thing happens in my DirectX course. We get to physically based rendering, I put one equation on the screen, and I watch people who write template metaprogramming for fun quietly close their laptops. So this post does the thing I do in class: walk through the math slowly, then show that the terrifying integral compiles down to about fifteen lines of HLSL you have probably already written without knowing it.
+
+## The one equation that runs the entire industry
+
+Everything in rendering, rasterized, raytraced, realtime or offline, is an attempt to solve this:
+
+$$
+L_o(\\mathbf{x}, \\omega_o) = L_e(\\mathbf{x}, \\omega_o) + \\int_{\\Omega} f_r(\\mathbf{x}, \\omega_i, \\omega_o)\\, L_i(\\mathbf{x}, \\omega_i)\\,(\\omega_i \\cdot \\mathbf{n})\\, d\\omega_i
+$$
+
+Kajiya wrote this down in 1986 and rendering has been footnotes ever since. Read it as a sentence, not as symbols: the light leaving point $\\mathbf{x}$ toward your eye ($L_o$) is whatever the surface emits itself ($L_e$), plus every bit of light arriving from every direction on the hemisphere ($\\Omega$), where each arriving direction $\\omega_i$ contributes its incoming light $L_i$, scaled by how much this surface reflects light from that direction toward you ($f_r$, the BRDF), and dimmed by the angle it lands at ($\\omega_i \\cdot \\mathbf{n}$, plain Lambert cosine).
+
+That's it. The whole equation is "add up all the light, weighted by the material." The reason it's hard is one word: the integral is over infinitely many directions, and $L_i$ itself depends on every other surface in the scene solving the same equation. It's recursive. Offline path tracers spend minutes per frame sampling their way through that recursion.
+
+## The realtime cheat
+
+Realtime rendering makes one brutal simplification: light only arrives from your $N$ analytic lights, and the rest of the hemisphere contributes nothing (until we sneak it back in later). An integral over a hemisphere of mostly-zero becomes a sum:
+
+$$
+L_o \\approx L_e + \\sum_{k=1}^{N} f_r(\\omega_k, \\omega_o)\\, L_k\\,(\\omega_k \\cdot \\mathbf{n})
+$$
+
+And a sum over lights is just a for loop. Congratulations: that for loop over your point lights you wrote in your first shader was a numerical approximation of an infinite-dimensional integral. You were doing calculus. Nobody told you.
+
+## The BRDF: where the material lives
+
+All the personality of a surface, metal versus plastic, rough versus polished, hides in $f_r$. The industry standard is Cook-Torrance with a Lambertian diffuse term:
+
+$$
+f_r = k_d\\, \\frac{c_{\\text{albedo}}}{\\pi} \\; + \\; \\frac{D(h)\\, F(\\omega_o, h)\\, G(\\omega_i, \\omega_o)}{4\\,(\\omega_o \\cdot \\mathbf{n})(\\omega_i \\cdot \\mathbf{n})}
+$$
+
+The left term is diffuse: albedo divided by $\\pi$, and if you've ever wondered why the $\\pi$ is there, it's energy conservation, integrating the cosine over the hemisphere produces exactly $\\pi$, so we divide it back out. The right term is the specular microfacet model, built from three functions with day jobs. All three work on the half vector $h = \\frac{\\omega_i + \\omega_o}{\\|\\omega_i + \\omega_o\\|}$, the direction a perfect mirror would need to face to bounce this light into your eye.
+
+**D, the normal distribution function**, answers: what fraction of the microscopic surface actually faces along $h$? GGX is the modern answer:
+
+$$
+D_{GGX}(h) = \\frac{\\alpha^2}{\\pi\\left((\\mathbf{n} \\cdot h)^2(\\alpha^2 - 1) + 1\\right)^2}
+$$
+
+where $\\alpha$ is roughness squared. This one function is the shape of your highlight:
+
+![The same formula, three roughness values, evaluated for real](/images/GGXDistribution.webp)
+
+Low roughness piles all the microfacets into a tight spike, a small blinding highlight. High roughness spreads the same total energy across a wide dim lobe. The area under those curves is conserved; the shape is the material.
+
+**F, the Fresnel term**, answers: how mirror-like does this surface get at grazing angles? Everything becomes a mirror at the horizon, look down a wet road at sunset. Schlick's approximation is unreasonably good for one line of math:
+
+$$
+F(\\omega_o, h) = F_0 + (1 - F_0)\\left(1 - (h \\cdot \\omega_o)\\right)^5
+$$
+
+$F_0$ is the reflectance looking straight on: about 0.04 for basically every dielectric, and the actual surface color for metals. That single number is most of what "metalness" means.
+
+**G, the geometry term**, answers: how much of the microsurface is shadowing or masking itself? Rough surfaces self-occlude. The Smith form with Schlick-GGX:
+
+$$
+G(\\omega_i, \\omega_o) = G_1(\\omega_i)\\, G_1(\\omega_o), \\qquad G_1(\\omega) = \\frac{\\mathbf{n} \\cdot \\omega}{(\\mathbf{n} \\cdot \\omega)(1 - k) + k}, \\qquad k = \\frac{(\\alpha + 1)^2}{8}
+$$
+
+## The part where the integral becomes shader code
+
+Here is the entire equation stack, symbol by symbol, as it ships:
+
+\`\`\`hlsl
+float3 CookTorrance(float3 N, float3 V, float3 L,
+                    float3 albedo, float roughness, float metallic)
+{
+    float3 H = normalize(V + L);
+    float NdotL = saturate(dot(N, L));   // the Lambert cosine from the integral
+    float NdotV = saturate(dot(N, V));
+    float NdotH = saturate(dot(N, H));
+
+    // D: GGX normal distribution
+    float a  = roughness * roughness;
+    float a2 = a * a;
+    float dDenom = NdotH * NdotH * (a2 - 1.0) + 1.0;
+    float D = a2 / (PI * dDenom * dDenom);
+
+    // F: Schlick fresnel
+    float3 F0 = lerp(0.04.xxx, albedo, metallic);
+    float3 F  = F0 + (1.0 - F0) * pow(1.0 - saturate(dot(H, V)), 5.0);
+
+    // G: Smith, Schlick-GGX
+    float k  = (roughness + 1.0) * (roughness + 1.0) / 8.0;
+    float g1 = NdotV / (NdotV * (1.0 - k) + k);
+    float g2 = NdotL / (NdotL * (1.0 - k) + k);
+    float G  = g1 * g2;
+
+    float3 specular = (D * F * G) / max(4.0 * NdotV * NdotL, 1e-4);
+    float3 kd = (1.0 - F) * (1.0 - metallic);   // energy conservation
+    return (kd * albedo / PI + specular) * NdotL;
+}
+\`\`\`
+
+Multiply by the light's color and sum over your lights: that's the sum from earlier, which was the integral from earlier. Note the two places conservation shows up in code: the \`1e-4\` clamp keeping the specular denominator from exploding at grazing angles, and \`kd\` shrinking the diffuse term by whatever Fresnel already claimed, because a photon reflected specularly is not available to be reflected diffusely. Skip that line and your materials glow with free energy, which artists will describe as "looks kind of wrong" and physics would describe as a crime.
+
+## The integral always comes back
+
+One loose end: we threw away the rest of the hemisphere, and the rest of the hemisphere is why realtime scenes used to look like plastic in a cave. Image-based lighting sneaks it back in: environment maps get prefiltered offline by, and I want you to act surprised, evaluating that same integral per roughness level and caching the results in mip levels. The split-sum approximation your engine uses for reflections is the rendering equation again, factored into two precomputable pieces.
+
+So no, you never escape the integral. You just keep meeting it in better disguises. Learn to recognize it once and every rendering technique for the rest of your career becomes "ah, it's you again."`,
+  },
 ];
+
+export const posts = rawPosts
+  .filter((p) => p.visible !== false)
+  .sort((a, b) => b.date.localeCompare(a.date));
