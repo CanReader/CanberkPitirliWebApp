@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { Send, CheckCircle, Download } from "lucide-react";
 import emailjs from "@emailjs/browser";
 import MagneticButton from "./MagneticButton";
+import { trackEvent } from "../lib/analytics";
 
 emailjs.init({ publicKey: "4_l3B7W070UlktnIE", blockHeadless: true });
 
@@ -41,8 +42,10 @@ export default function Contact() {
       });
       setSent(true);
       setForm({ email: "", subject: "", message: "" });
+      trackEvent("contact_submit");
     } catch (err) {
       console.error("Failed to send:", err);
+      trackEvent("contact_error");
     } finally {
       setSending(false);
     }
@@ -175,6 +178,7 @@ export default function Contact() {
                 href="https://drive.google.com/file/d/1N0feMoS_lJVaWSPMEQ0rEjmC5wttEtzR/view?usp=sharing"
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => trackEvent("resume_click", { from: "contact" })}
                 className="inline-flex items-center gap-2 text-accent text-xs sm:text-sm hover:underline"
               >
                 <Download size={14} />

@@ -1,11 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { trackEvent } from "../lib/analytics";
 
 const KONAMI = [
-  "ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown",
-  "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight",
-  "b", "a",
-];
+  "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight"];
 
 export default function EasterEgg() {
   const [triggered, setTriggered] = useState(false);
@@ -18,6 +16,7 @@ export default function EasterEgg() {
       if (seq.current.length === KONAMI.length &&
           seq.current.every((k, i) => k === KONAMI[i])) {
         setTriggered(true);
+        trackEvent("easter_egg");
         seq.current = [];
       }
     };
