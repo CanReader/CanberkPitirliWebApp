@@ -2227,11 +2227,22 @@ The reporting and research this post is built on, if you want to read the primar
     tags: ["HLSL", "DirectX 11", "Graphics", "Tutorials"],
     excerpt:
       "Every HLSL function reference tells you the syntax. This one covers lerp, step, clip, reflect, and the gotchas that actually bite you in production.",
-    content: `Microsoft's HLSL reference is accurate and useless in the same sentence. One line per function, a return type, no intuition, no example that survives contact with a real shader. I teach this material every week in my DirectX 11 course and I watch the same handful of functions trip up every single cohort, not because the functions are hard, but because nobody tells you the one detail that actually matters until you've already shipped the bug.
+    content: `Microsoft's HLSL reference is accurate and useless in the same sentence. One line per function, a return type, no intuition, no example that survives contact with a real shader. I teach this material every week in my DirectX 11 course and I watch the same functions trip up every single cohort, not because the functions are hard, but because nobody tells you the one detail that actually matters until you've already shipped the bug.
 
-So here's the reference I actually hand my students. Every function below is one you'll use constantly, with the gotcha that the docs leave out.
+So here's the reference I actually hand my students. Every function below gets a real example and the use case you'll actually reach for it in, plus the gotcha the docs leave out. Twenty-eight functions, semantics, and modifiers, everything I consider load-bearing for writing HLSL that isn't copy-pasted from a tutorial you don't understand.
 
 One thing before we start: almost everything here operates component-wise on vectors. \`lerp(float3, float3, float)\` blends each channel independently. \`max(float4, float4)\` takes the max of each component separately. If a function works on a \`float\`, assume it works the same way on a \`float2\`, \`float3\`, or \`float4\` unless I say otherwise.
+
+## mul()
+
+\`mul(a, b)\` is the one function that shows up in every single shader you will ever write, and it's also the one nobody explains properly. It's matrix multiplication, vector-times-matrix or matrix-times-matrix, and which one you get depends on the argument order.
+
+\`\`\`hlsl
+float4 worldPos = mul(float4(localPos, 1.0), world);       // vector as a row, on the left
+float4 clipPos  = mul(viewProj, worldPos);                 // vector as a column, on the right
+\`\`\`
+
+Here's the gotcha that costs people an afternoon: \`mul(vector, matrix)\` treats the vector as a row vector and multiplies on the left. \`mul(matrix, vector)\` treats it as a column vector and multiplies on the right. These are mathematically different operations, row-vector-times-matrix is not the same as matrix-times-column-vector unless the matrix happens to be symmetric. Get the order backwards and you don't get a compile error, you get a silently transposed transform. Geometry that's subtly skewed, lighting that points the wrong way, nothing that screams "you multiplied in the wrong order" until you've spent an hour suspecting your matrix math instead. Whichever convention your engine uses, row-major or column-major, pick one order and stay consistent across every shader.
 
 ## lerp()
 
@@ -2243,6 +2254,16 @@ float3 finalColor = lerp(fogColor, surfaceColor, visibility);
 
 The gotcha: unlike some engines' lerp, HLSL does not clamp \`t\` to \`[0, 1]\`. Feed it 1.5 and you get extrapolation past \`b\`, not a clamped result. I've debugged more than one "why is this color blowing out past white" bug that was just an unclamped \`t\` sneaking past 1.0 somewhere upstream. If you need the safe version, clamp \`t\` yourself or use \`saturate()\` on it first.
 
+## saturate()
+
+\`saturate(x)\` is \`clamp(x, 0.0, 1.0)\`, and it exists as its own function because it's cheap enough that it's often folded into the previous instruction as a free output modifier rather than costing a separate op. You'll see it at the end of almost every lighting calculation.
+
+\`\`\`hlsl
+float3 litColor = saturate(diffuse + specular + ambient); // keep the sum in displayable range
+\`\`\`
+
+The use case that actually matters beyond "clamp to displayable range": \`saturate()\` shows up right before \`pow()\` in almost every specular calculation you'll ever read, and that's not a style choice, it's there specifically to keep the base non-negative. More on exactly why when we get to \`pow()\`.
+
 ## step()
 
 \`step(edge, x)\` returns \`0\` if \`x < edge\`, and \`1\` otherwise, per component. Read that order carefully: the threshold comes first, the value comes second. I still see people flip this.
@@ -2251,7 +2272,18 @@ The gotcha: unlike some engines' lerp, HLSL does not clamp \`t\` to \`[0, 1]\`. 
 float mask = step(0.5, uv.x); // 0 for the left half, 1 for the right half
 \`\`\`
 
-Why does this exist when you could just write an \`if\`? Because \`step()\` compiles to arithmetic, not a branch. If you've read my piece on what SIMT does to branches, you already know why that matters: a divergent \`if\` makes every thread in the group pay for both paths, masked. \`step()\` sidesteps that entirely by turning a conditional into a comparison instruction. It's the building block behind a lot of branchless shader code, including \`smoothstep()\`, which is the same idea with a cubic curve instead of a hard cutoff.
+Why does this exist when you could just write an \`if\`? Because \`step()\` compiles to arithmetic, not a branch. If you've read my piece on what SIMT does to branches, you already know why that matters: a divergent \`if\` makes every thread in the group pay for both paths, masked. \`step()\` sidesteps that entirely by turning a conditional into a comparison instruction. It's the building block behind a lot of branchless shader code.
+
+## smoothstep()
+
+\`smoothstep(edge0, edge1, x)\` is \`step()\`'s smoother sibling: \`0\` below \`edge0\`, \`1\` above \`edge1\`, and a smooth S-curve (Hermite interpolation, \`3t² - 2t³\`) in between instead of a hard cutoff. Use it anywhere a binary mask looks too harsh: soft particle edges, fog falloff, a glow that fades instead of snapping off.
+
+\`\`\`hlsl
+float fogFactor = smoothstep(fogStart, fogEnd, distanceToCamera);
+float3 finalColor = lerp(surfaceColor, fogColor, fogFactor);
+\`\`\`
+
+The gotcha: \`edge0\` has to be less than \`edge1\`. Flip them, even by accident because a designer-exposed variable went negative, and the result is undefined instead of just inverted, which means it's a hardware-dependent bug that looks fine on your GPU and breaks on someone else's.
 
 ## clip()
 
@@ -2263,6 +2295,40 @@ clip(alpha - alphaThreshold); // discard if alpha < threshold
 \`\`\`
 
 The detail that actually matters for performance: once you call \`clip()\` in a shader, the GPU can no longer rely on early-Z rejection for that draw, because it doesn't know whether a pixel survives until after your pixel shader has already run. A cheap-looking cutout material can quietly cost more than an opaque one for exactly this reason. Fine for foliage, worth remembering before you sprinkle \`clip()\` across a whole scene.
+
+## any() and all()
+
+\`any(x)\` is true if at least one component of \`x\` is nonzero. \`all(x)\` is true only if every component is. The everyday use is a manual bounds check before you bother sampling or discard the pixel outright.
+
+\`\`\`hlsl
+if (any(uv < 0.0) || any(uv > 1.0))
+{
+    clip(-1); // outside the atlas tile, kill it
+}
+\`\`\`
+
+\`all()\` shows up on the other side of the same coin: checking that a value is valid across every channel before you trust it, like confirming a decoded normal actually has all three components in range before you light with it.
+
+## dot()
+
+\`dot(a, b)\` sums the component-wise products: \`a.x*b.x + a.y*b.y + a.z*b.z\`. Geometrically that's \`|a| * |b| * cos(angle between them)\`, which is the whole reason it's everywhere in lighting math. For two unit vectors, \`dot()\` hands you the cosine of the angle between them directly, no trig function required.
+
+\`\`\`hlsl
+float NdotL = dot(normalize(normal), normalize(lightDir)); // cosine of the angle to the light
+\`\`\`
+
+That's the entire mechanism behind Lambertian diffuse lighting: light falls off as the cosine of the incidence angle, and \`dot()\` on two unit vectors computes exactly that cosine for free. Every "NdotL" or "NdotV" variable name you'll ever see in someone else's shader is this.
+
+## normalize()
+
+\`normalize(x)\` is \`x / length(x)\`, rescaling a vector to length 1 while keeping its direction. You'll call it on nearly every direction vector before you use it in a lighting calculation, because the math above only works cleanly on unit vectors.
+
+\`\`\`hlsl
+float3 N = normalize(input.normal);
+float3 L = normalize(lightPos - worldPos);
+\`\`\`
+
+The gotcha: normalizing a zero-length vector divides by zero and hands you back \`NaN\`, not an error. This happens more often than it sounds like it should, an interpolated normal that got zeroed by bad vertex data, a light direction where the fragment sits exactly at the light's position, or a tangent built from \`cross()\` of two parallel vectors, which degenerates to a zero vector before it ever reaches \`normalize()\`. A \`NaN\` pixel doesn't crash anything, it just quietly turns black or white and looks like a completely unrelated bug.
 
 ## reflect() and refract()
 
@@ -2279,25 +2345,85 @@ if (dot(refracted, refracted) < 0.0001) {
 
 ## rcp()
 
-\`rcp(x)\` is the hardware's fast approximate reciprocal, \`1 / x\` computed with a cheaper instruction and slightly less precision than a real division. Most shader compilers will quietly turn \`1.0 / x\` into \`rcp(x)\` for you anyway when it's safe to do so, so you rarely need to call it explicitly. Where it's worth reaching for on purpose: tight inner loops doing a lot of divisions where you've already decided the precision loss is acceptable, like normalizing a lot of vectors in a particle system. Don't use it in anything where precision actually matters, like projecting a matrix.
+\`rcp(x)\` is the hardware's fast approximate reciprocal, \`1 / x\` computed with a cheaper instruction and slightly less precision than a real division.
+
+\`\`\`hlsl
+float invLen = rcp(length(v)); // faster than 1.0 / length(v), less precise
+float3 n = v * invLen;
+\`\`\`
+
+That's roughly what \`normalize()\` is doing under the hood when you want more control over the speed-versus-precision tradeoff yourself. Most shader compilers will quietly turn \`1.0 / x\` into \`rcp(x)\` for you anyway when it's safe to do so, so you rarely need to call it explicitly. Where it's worth reaching for on purpose: tight inner loops doing a lot of divisions where you've already decided the precision loss is acceptable, like normalizing a lot of vectors in a particle system. Don't use it in anything where precision actually matters, like projecting a matrix.
 
 ## max(), min(), and clamp()
 
-\`max(a, b)\` and \`min(a, b)\` do what they say, per component. \`clamp(x, lo, hi)\` is both of them stacked: \`max(min(x, hi), lo)\`. The one place this trio shows up in almost every shader you'll write: clamping a dot product before it feeds into lighting.
+\`max(a, b)\` and \`min(a, b)\` do what they say, per component. \`clamp(x, lo, hi)\` is both of them stacked: \`max(min(x, hi), lo)\`.
 
 \`\`\`hlsl
-float NdotL = max(dot(normal, lightDir), 0.0); // negative light contribution makes no physical sense
+float NdotL = max(dot(normal, lightDir), 0.0);          // negative light contribution makes no physical sense
+float nearestDist = min(distToLightA, distToLightB);    // cheapest way to pick the closer of two
+float exposure = clamp(userExposure, 0.1, 8.0);          // stop a UI slider from producing nonsense
 \`\`\`
 
-Skip the \`max\` there and surfaces facing away from a light will subtract light instead of contributing none, which looks like a black halo around anything backlit.
+Skip the \`max\` in that first line and surfaces facing away from a light will subtract light instead of contributing none, which looks like a black halo around anything backlit.
+
+## pow()
+
+\`pow(x, y)\` is \`x\` raised to the power \`y\`. You'll meet it constantly in specular highlights, \`pow(NdotH, shininess)\`, and gamma correction, \`pow(color, 1.0 / 2.2)\`.
+
+\`\`\`hlsl
+float specular = pow(saturate(dot(N, H)), shininess);
+\`\`\`
+
+The gotcha, and the actual reason that \`saturate()\` is sitting right there: \`pow()\` with a negative base and a non-integer exponent is undefined in HLSL, because under the hood it's implemented as \`exp(y * log(x))\`, and the log of a negative number doesn't exist. \`NdotH\` can go slightly negative at grazing angles due to interpolation, and \`shininess\` is almost always a fractional exponent. Skip the \`saturate()\` and you get sporadic \`NaN\` pixels that only show up at certain viewing angles, which is a miserable thing to debug if you don't already know \`pow()\` is the culprit.
+
+## length() and distance()
+
+\`length(x)\` is \`sqrt(dot(x, x))\`, the magnitude of a vector. \`distance(a, b)\` is just \`length(a - b)\`.
+
+\`\`\`hlsl
+float d = distance(worldPos, lightPos);
+float attenuation = 1.0 / (1.0 + d * d);
+\`\`\`
+
+The performance detail worth knowing: if you only need to compare distances, say, finding the nearest of several lights, skip \`length()\` entirely and compare \`dot(x, x)\` instead. Squaring preserves ordering, and you avoid a square root you didn't actually need. \`sqrt()\` isn't free, and this trick shows up constantly in anything culling or sorting by distance.
 
 ## cross()
 
-\`cross(a, b)\` is only defined for \`float3\`, there's no \`float2\` or \`float4\` overload because the cross product itself is a 3D-specific operation. The recurring use in a rendering codebase is building an orthonormal basis: given a normal and a tangent, \`cross(normal, tangent)\` gives you the bitangent, which is exactly how you construct a TBN matrix for normal mapping.
+\`cross(a, b)\` is only defined for \`float3\`, there's no \`float2\` or \`float4\` overload because the cross product itself is a 3D-specific operation. The recurring use in a rendering codebase is building an orthonormal basis for normal mapping.
+
+\`\`\`hlsl
+float3 T = normalize(input.tangent);
+float3 N = normalize(input.normal);
+float3 B = cross(N, T); // bitangent, completes the TBN basis
+float3x3 TBN = float3x3(T, B, N);
+\`\`\`
+
+Watch what feeds this: if your tangent and normal end up parallel or nearly parallel, which happens with bad UV unwraps or degenerate triangles, \`cross()\` degenerates toward a zero vector, and that zero vector goes straight into a \`normalize()\` next, which is exactly the \`NaN\` trap described above.
 
 ## switch and if: the real cost is the same as a branch
 
-There's no free lunch hiding in \`switch\`. On a compile-time constant or a value that's uniform across the draw call, the compiler can turn either an \`if\` chain or a \`switch\` into a genuinely cheap static branch, sometimes even eliminating dead branches entirely. On a value that varies per pixel, both \`if\` and \`switch\` pay the same SIMT divergence cost: every code path any thread in the group takes gets executed by the whole group, with the irrelevant results masked off. \`switch\` doesn't become a jump table the way it might on a CPU. If you're branching on material type per pixel and the types vary across a triangle, you're paying for every branch that shows up anywhere in that group, not just the one each pixel needed.
+There's no free lunch hiding in \`switch\`.
+
+\`\`\`hlsl
+// Uniform across the draw call: the compiler can often turn this into a genuinely cheap static branch
+if (materialType == MAT_METAL) { ... }
+
+// Varies per pixel: every thread in the group pays for every branch any thread in it takes
+if (vertexColor.r > 0.5) { ... }
+\`\`\`
+
+On a compile-time constant or a value that's uniform across the draw call, the compiler can turn either an \`if\` chain or a \`switch\` into a genuinely cheap static branch, sometimes even eliminating dead branches entirely. On a value that varies per pixel, both \`if\` and \`switch\` pay the same SIMT divergence cost: every code path any thread in the group takes gets executed by the whole group, with the irrelevant results masked off. \`switch\` doesn't become a jump table the way it might on a CPU. If you're branching on material type per pixel and the types vary across a triangle, you're paying for every branch that shows up anywhere in that group, not just the one each pixel needed.
+
+## sign()
+
+\`sign(x)\` returns \`-1\`, \`0\`, or \`1\` per component, matching the sign of the input. It's part of the same branchless toolkit as \`step()\`, a comparison you can multiply by instead of branching on.
+
+\`\`\`hlsl
+float facing = sign(dot(viewDir, geometricNormal));
+float3 N = normal * facing; // flip the normal to face the camera, no branch
+\`\`\`
+
+That pattern, flipping a normal for double-sided materials based on which side the camera is looking from, is the single most common use I see for \`sign()\` outside of pure math utility code.
 
 ## SV_Position means two different things
 
@@ -2335,15 +2461,75 @@ Every field needs its own semantic. The order of fields in the struct doesn't ne
 
 ## nointerpolation
 
-If you're passing an integer from a vertex shader to a pixel shader, HLSL will not let you do it without this modifier, it's a compile error, not a warning. The reason is physical: the hardware's interpolator only knows how to blend floating point values across a triangle, so an unmarked int has no sane interpolated value at the corners. \`nointerpolation\` tells the compiler to just take the value from one vertex, provoking vertex, flat, and skip interpolation entirely. Same modifier is what you want for anything that shouldn't blend across a triangle in the first place, like a material ID or a flat face normal for hard-edged shading.
+If you're passing an integer from a vertex shader to a pixel shader, HLSL will not let you do it without this modifier, it's a compile error, not a warning.
+
+\`\`\`hlsl
+struct VSOutput
+{
+    float4 position                 : SV_Position;
+    nointerpolation int materialID  : MATERIALID; // ints must be flat, no exceptions
+    float3 normal                   : NORMAL;
+};
+\`\`\`
+
+The reason is physical: the hardware's interpolator only knows how to blend floating point values across a triangle, so an unmarked int has no sane interpolated value at the corners. \`nointerpolation\` tells the compiler to just take the value from one vertex, provoking vertex, flat, and skip interpolation entirely. Same modifier is what you want for anything that shouldn't blend across a triangle in the first place, like a material ID or a flat face normal for hard-edged shading.
 
 ## precise
 
-\`precise\` stops the compiler from reordering or fusing floating point operations for that value, even when the reordering would normally be a safe optimization. You almost never need it. The one place it earns its keep: tessellation and displacement, where two adjacent triangles compute a shared edge vertex from slightly different starting data, and if the compiler optimizes the two computations differently, you get a visible crack at the seam. \`precise\` forces bit-identical evaluation order so both triangles agree.
+\`precise\` stops the compiler from reordering or fusing floating point operations for that value, even when the reordering would normally be a safe optimization.
+
+\`\`\`hlsl
+precise float3 displacedPos = basePos + normal * heightSample * displacementScale;
+\`\`\`
+
+You almost never need it. The one place it earns its keep: tessellation and displacement, where two adjacent triangles compute a shared edge vertex from slightly different starting data, and if the compiler optimizes the two computations differently, you get a visible crack at the seam. \`precise\` forces bit-identical evaluation order so both triangles agree.
+
+## Sample(), SampleLevel(), and Load(): three ways to read a texture
+
+\`Sample(sampler, uv)\` is the one everyone learns first: filtered, mip-mapped, does the right thing by default.
+
+\`\`\`hlsl
+float4 color = albedoTex.Sample(linearSampler, uv);
+\`\`\`
+
+The gotcha lives in how it picks a mip level: it computes screen-space derivatives of \`uv\` across the current 2x2 pixel quad, which means it needs all four threads in that quad active and running the same code. Call \`Sample()\` inside dynamically divergent control flow, an \`if\` that some threads in the quad take and others don't, and you get a compiler warning at best and wrong mip selection at worst. Compute shaders don't have quads at all, so \`Sample()\` isn't valid there either.
+
+\`SampleLevel(sampler, uv, mipLevel)\` sidesteps the whole problem by taking the mip level explicitly instead of computing it from derivatives. That's what you reach for inside a divergent branch, inside a compute shader, or in a vertex shader, anywhere derivatives aren't available or aren't trustworthy.
+
+\`Load(intCoord, mipLevel)\` skips filtering entirely: you hand it literal integer texel coordinates, not normalized UVs, and get back exactly what's stored there, point-sampled, no interpolation. This is what you use to read a G-Buffer in a deferred lighting pass, you want the exact stored albedo and normal at that exact pixel, not a blend with its neighbors.
+
+\`\`\`hlsl
+int3 texelCoord = int3(pixelPos.xy, 0);
+float4 gbufferAlbedo = gbufferAlbedoTex.Load(texelCoord);
+\`\`\`
+
+If you haven't read [my piece on forward versus deferred rendering](/blog/deferred-vs-forward-rendering), this \`Load()\` call is exactly what's happening in the second pass of a deferred renderer: walking the G-Buffer pixel by pixel with integer coordinates, not sampling it like a regular texture.
+
+## ddx() and ddy()
+
+\`ddx(x)\` and \`ddy(x)\` return the rate of change of \`x\` between neighboring pixels in the same 2x2 quad, horizontally and vertically. This is the exact mechanism \`Sample()\` uses internally to pick a mip level, and you can call it directly for your own purposes.
+
+\`\`\`hlsl
+float3 dx = ddx(worldPos);
+float3 dy = ddy(worldPos);
+float3 faceNormal = normalize(cross(dx, dy)); // flat per-triangle normal, no vertex data needed
+\`\`\`
+
+That pattern gives you a hard, faceted normal straight from screen-space derivatives, no precomputed vertex normals required, useful for flat-shaded or low-poly looks. Same restriction as \`Sample()\` applies here and for the same reason: this only works in a pixel shader, and only in non-divergent control flow, because it needs the full quad. It's the identical SIMT constraint from the hardware model piece, just showing up in a second place.
+
+## frac()
+
+\`frac(x)\` returns the fractional part: \`x - floor(x)\`. The use case you'll reach for constantly is tiling a UV coordinate.
+
+\`\`\`hlsl
+float2 tiledUV = frac(uv * tileCount); // repeats the texture tileCount times
+\`\`\`
+
+The detail worth knowing, especially right after reading about \`fmod\` below: \`frac()\` always returns a value in \`[0, 1)\`, even for negative input, because \`floor()\` rounds toward negative infinity. \`frac(-0.3)\` is \`0.7\`, not \`-0.3\`. That's the GLSL \`mod()\`-style wrapping behavior, and it's the opposite of what \`fmod\` does one section down. Mixing the two up is exactly how a UV wrap looks correct for positive coordinates and breaks the moment a coordinate goes negative.
 
 ## The modulo you actually want is fmod, and it's not the same as GLSL's mod
 
-The \`%\` operator in HLSL only works on integer types. For floats, you want \`fmod(x, y)\`. The part that actually matters if you're porting a shader from GLSL: HLSL's \`fmod\` takes the sign of \`x\`, while GLSL's \`mod\` takes the sign of \`y\`. Feed \`fmod(-0.3, 1.0)\` and you get \`-0.3\`, not \`0.7\`. If you're wrapping a UV coordinate or a hue value and expecting it to always land positive, \`fmod\` alone will hand you a negative number and everything downstream that assumes \`[0, 1]\` breaks in a way that looks like a sampling bug.
+The \`%\` operator in HLSL only works on integer types. For floats, you want \`fmod(x, y)\`. The part that actually matters if you're porting a shader from GLSL: HLSL's \`fmod\` takes the sign of \`x\`, while GLSL's \`mod\` takes the sign of \`y\`. Feed \`fmod(-0.3, 1.0)\` and you get \`-0.3\`, not \`0.7\`. If you're wrapping a UV coordinate or a hue value and expecting it to always land positive, \`fmod\` alone will hand you a negative number and everything downstream that assumes \`[0, 1]\` breaks in a way that looks like a sampling bug. If you want \`frac()\`'s always-positive behavior but with a divisor other than 1, that's the actual fix:
 
 \`\`\`hlsl
 float wrapped = fmod(x, 1.0);
@@ -2378,9 +2564,9 @@ You can swizzle on the left side of an assignment too: \`color.rgb = newColor;\`
 
 ## Why none of this is actually hard
 
-Every function above is one or two lines to explain correctly. What the official docs strip out isn't the syntax, it's the one sentence that tells you why \`refract\` returns zero, or why \`nointerpolation\` is mandatory instead of optional, or why \`fmod\` bit you on a UV wrap. That sentence is the entire difference between reading the reference and actually knowing the language.
+Every function above is one or two lines to explain correctly. What the official docs strip out isn't the syntax, it's the one sentence that tells you why \`refract\` returns zero, why \`mul\`'s argument order silently transposes your transform, why \`pow\` needs that \`saturate\` in front of it, or why \`fmod\` bit you on a UV wrap. That sentence is the entire difference between reading the reference and actually knowing the language.
 
-If you want the hardware model underneath all of this, [why branches aren't free and what a vertex shader actually outputs](/blog/hlsl-from-first-principles) is the piece that explains the SIMT execution model these functions are built around. And if you want the from-scratch version, writing every one of these into a real rendering pipeline instead of a code snippet, that's what I actually teach in my DirectX 11 course.`,
+If you want the hardware model underneath all of this, [why branches aren't free and what a vertex shader actually outputs](/blog/hlsl-from-first-principles) is the piece that explains the SIMT execution model these functions, and their quad-dependent cousins like \`Sample()\` and \`ddx()\`, are built around. And if you want the from-scratch version, writing every one of these into a real rendering pipeline instead of a code snippet, that's what I actually teach in my DirectX 11 course.`,
   },
 ];
 
