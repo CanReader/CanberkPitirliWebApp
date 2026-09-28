@@ -8,11 +8,13 @@
 //      (Apache serves those directories directly; the SPA takes over on load.)
 //   2. Generates dist/sitemap.xml
 //   3. Generates dist/rss.xml for the blog
+//   4. Emits dist/getprojects.json, the /getprojects endpoint
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { posts } from "../src/data/posts.js";
 import { projects } from "../src/data/projects.js";
 import { site } from "../src/data/siteConfig.js";
+import repositories from "../src/data/repositories.json" with { type: "json" };
 
 const DIST = new URL("../dist", import.meta.url).pathname;
 const template = readFileSync(join(DIST, "index.html"), "utf8");
@@ -207,5 +209,13 @@ ${rssItems}
 `;
 writeFileSync(join(DIST, "rss.xml"), rss);
 console.log(`  ✓ rss.xml (${posts.length} items)`);
+
+// ── getprojects.json ──
+// Served at /getprojects via a rewrite in public/.htaccess, so a plain GET
+// returns application/json. The `generated` field is stamped at build time so
+// the endpoint never claims to be fresher than the deploy that produced it.
+const getprojects = { ...repositories, generated: today };
+writeFileSync(join(DIST, "getprojects.json"), JSON.stringify(getprojects, null, 2) + "\n");
+console.log(`  ✓ getprojects.json (${getprojects.repositories.length} repositories)`);
 
 console.log("Postbuild SEO pass done.");
