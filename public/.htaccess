@@ -4,6 +4,11 @@ AddDefaultCharset UTF-8
   RewriteEngine On
   RewriteBase /
   RewriteRule ^index\.html$ - [L]
+
+  # /getprojects is a JSON endpoint, not a SPA route. Serve the generated file
+  # so a plain GET returns application/json instead of the app shell.
+  RewriteRule ^getprojects/?$ /getprojects.json [L]
+
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
@@ -38,5 +43,11 @@ AddDefaultCharset UTF-8
   </FilesMatch>
   <FilesMatch "\.html$">
     Header set Cache-Control "no-cache"
+  </FilesMatch>
+  # /getprojects is consumed as an API, so allow cross-origin reads.
+  <FilesMatch "^getprojects\.json$">
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, OPTIONS"
+    Header set Cache-Control "public, max-age=3600"
   </FilesMatch>
 </IfModule>
