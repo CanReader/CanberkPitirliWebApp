@@ -1,5 +1,8 @@
 import { execSync } from "node:child_process";
-import "dotenv/config";
+import { config } from "dotenv";
+
+// Credentials live in .env.deploy; plain .env is kept for non-secret vars.
+config({ path: [".env.deploy", ".env"] });
 
 const {
   HOSTINGER_HOST,
