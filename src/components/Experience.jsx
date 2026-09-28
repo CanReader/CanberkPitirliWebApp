@@ -5,7 +5,7 @@ import { Briefcase, GraduationCap, Rocket } from "lucide-react";
 const timeline = [
   {
     type: "work",
-    visible: false, // set to true (or remove) to publish
+    visible: true, // set to true (or remove) to publish
     role: "Fullstack Software Engineer",
     company: "Creatant",
     period: "May 2026 - Present",
@@ -20,10 +20,10 @@ const timeline = [
   },
   {
     type: "work",
-    visible: false, // set to true (or remove) to publish
+    visible: true, // set to true (or remove) to publish
     role: "C++ Developer (Freelance)",
     company: "Ursa Majeur",
-    period: "Jan 2026 - Present",
+    period: "Jan 2026 - Aug 2026",
     description:
       "Freelance C++ developer for an Istanbul based game studio. I built their procedural terrain generation plugin for Unreal Engine 5 from scratch: deterministic generation from a seed, fast enough for runtime use, and simple enough that designers shape worlds without touching code.",
     highlights: [
@@ -79,17 +79,30 @@ const timeline = [
   },
   {
     type: "education",
-    role: "B.Sc. Computer Engineering",
-    company: "University",
-    period: "2018 - 2022",
+    role: "Associate Degree in Programming",
+    company: "Balıkesir University",
+    period: "2019 - 2021",
     description:
-      "Focused on systems programming, computer graphics, and algorithms. Started professional game development work during sophomore year and graduated while working full-time at Reality Arts.",
+      "Studied Programming while already working professionally. Entered having shipped a commercial Steam title, and worked freelance throughout, delivering a restaurant POS system and publishing a game to Google Play before graduating.",
     highlights: [
-      "Started at Reality Arts during sophomore year",
+      "Studied while delivering paid client work",
       "Built graphics demos and game projects throughout studies",
-      "Graduated while working full-time on shipped titles",
+      "Entered with a shipped Steam title already behind me",
     ],
-    techs: ["C++", "Java", "Python", "OpenGL", "Algorithms"],
+    techs: ["C++", "C#", "Java", "SQL", "Algorithms"],
+  },
+  {
+    type: "education",
+    role: "Web Development",
+    company: "Lüleburgaz Vocational and Technical High School",
+    period: "2015 - 2019",
+    description:
+      "Vocational secondary education specialising in Web Development, overlapping with my first professional role at Fatalitech Game Studios.",
+    highlights: [
+      "Shipped a commercial Steam title during secondary education",
+      "First exposure to web development fundamentals",
+    ],
+    techs: ["HTML", "CSS", "JavaScript"],
   },
   {
     type: "origin",
