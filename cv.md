@@ -9,7 +9,7 @@
 - LinkedIn: linkedin.com/in/bereader
 - Location: Kırklareli, Turkey
 - Relocation: Open to relocation anywhere worldwide. UK and Europe strongly preferred. Family in Berlin, Germany.
-- Languages: Turkish (Native), English (Fluent), German (Intermediate), French (Intermediate)
+- Languages: Turkish (Native), English (Fluent), German (Intermediate), French (Beginner)
 - Availability: Immediate — can start within days for Turkish roles, within weeks for international roles requiring visa processing
 
 ---
@@ -69,7 +69,7 @@ These are the things that set me apart from other candidates at my experience le
 
 7. **Active, visible portfolio** — 53+ GitHub repositories. Everything I claim is publicly verifiable. Recruiters and hiring managers can see my code, not just take my word for it.
 
-8. **Multilingual** — Turkish (native), English (fluent), German (intermediate), French (intermediate). Relevant for European studios and international teams.
+8. **Multilingual** — Turkish (native), English (fluent), German (intermediate), French (beginner). Relevant for European studios and international teams.
 
 9. **3 Epic Games grants** — Reality Arts received 3 grants from Epic Games (Unreal Dev Grant + Epic Megagrants) for quality of UE usage and AI systems. I was part of the team that earned these.
 
