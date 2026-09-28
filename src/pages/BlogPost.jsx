@@ -143,6 +143,26 @@ const mdComponents = {
   strong: ({ children }) => (
     <strong className="text-text font-semibold">{children}</strong>
   ),
+  table: ({ children }) => (
+    <div className="my-6 overflow-x-auto rounded-xl border border-border">
+      <table className="w-full border-collapse text-sm">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => (
+    <thead className="bg-surface">{children}</thead>
+  ),
+  tbody: ({ children }) => <tbody>{children}</tbody>,
+  tr: ({ children }) => (
+    <tr className="border-b border-border last:border-0">{children}</tr>
+  ),
+  th: ({ children }) => (
+    <th className="text-left font-heading font-semibold text-text px-4 py-2.5 whitespace-nowrap">
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td className="text-muted px-4 py-2.5 align-top">{children}</td>
+  ),
   code({ inline, className, children }) {
     const match = /language-(\w+)/.exec(className || "");
     if (!inline && match) {
