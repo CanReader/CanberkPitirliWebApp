@@ -725,7 +725,7 @@ When the gap is large, look for the thing that's causing the entire renderer to 
     featured: false,
     tags: ["HLSL", "DirectX 11", "Graphics", "Tutorials"],
     excerpt:
-      "Most HLSL tutorials hand you a working triangle and call it done. You get a result. You don't get an understanding. This is the explanation I wish I'd had before I learned shaders.",
+      "Most HLSL tutorials hand you a working triangle and call it done. This one explains the SIMT hardware: why branches aren't free, and what a shader runs on.",
     content: `Most HLSL tutorials hand you a vertex shader, hand you a pixel shader, hand you a working triangle, and call it done. You get a result. You don't get an understanding.
 
 This is the explanation I wish I'd had before I learned HLSL. It's not a tutorial in the "type this in" sense. It's the mental model of what a shader is, what it runs on, and what your code is actually doing.
@@ -1512,13 +1512,13 @@ Namespace your console variables and log categories with the plugin name, becaus
   },
   {
     slug: "deferred-vs-forward-rendering",
-    title: "Deferred vs Forward Rendering: When Each One Actually Wins",
+    title: "Forward vs Deferred Rendering: What Actually Decides It",
     date: "2026-01-11",
     category: "Graphics",
     featured: false,
     tags: ["Graphics", "Rendering", "DirectX 11"],
     excerpt:
-      "Students ask me this every month, so here's the answer I actually give: the whole debate is one question about where you pay for lights, and your content answers it for you.",
+      "I've shipped both, including a VR title where MSAA made the call before I touched a profiler. Not a rule of thumb: it's G-Buffer bandwidth versus overdraw.",
     content: `Deferred versus forward is the first real architecture decision in any renderer, and it gets discussed like a religious war when it's actually one accounting question: when do you pay for lighting, and what do you multiply it by? I've implemented both, I teach both in my DirectX 11 course, and here's the version of this discussion that fits in one honest post.
 
 ## Forward: shade while you draw
