@@ -123,16 +123,15 @@ const mdComponents = {
     </a>
   ),
   ul: ({ children }) => (
-    <ul className="list-none mb-5 space-y-2">{children}</ul>
+    <ul className="mb-5 space-y-2 pl-5 marker:text-accent [list-style-type:'▸_']">
+      {children}
+    </ul>
   ),
   ol: ({ children }) => (
     <ol className="list-decimal list-inside mb-5 space-y-2 text-muted">{children}</ol>
   ),
   li: ({ children }) => (
-    <li className="text-muted leading-7 flex gap-2">
-      <span className="text-accent mt-2 shrink-0">▸</span>
-      <span>{children}</span>
-    </li>
+    <li className="text-muted leading-7 pl-1">{children}</li>
   ),
   blockquote: ({ children }) => (
     <blockquote className="border-l-2 border-accent pl-4 my-6 italic text-muted">
