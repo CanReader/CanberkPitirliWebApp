@@ -1394,7 +1394,7 @@ If you're building anything similar: do Linux first. Not because it ships first,
     tags: ["Rust", "CUDA", "AI/ML", "Performance"],
     excerpt:
       "I wrote a deep learning framework from scratch in Rust with hand-tuned CUDA kernels, benchmarked it against PyTorch, and I'm publishing the numbers including the ones that don't flatter me.",
-    content: `FastNN is my deep learning framework: Rust on the outside, hand-written CUDA on the inside, no PyTorch or TensorFlow anywhere underneath. Tape-based autodiff, RAII GPU memory, layers up to full Transformers. I built it to find out what the big frameworks actually cost you, and this post is the honest scorecard.
+    content: `FastNN is my deep learning framework: Rust on the outside, hand-written CUDA on the inside, no PyTorch or TensorFlow anywhere underneath. Define-by-run autodiff, RAII GPU memory, layers up to full Transformers. I built it to find out what the big frameworks actually cost you, and this post is the honest scorecard.
 
 Spoiler for the impatient: on raw matrix operations FastNN lands within about 15% of PyTorch while using roughly 40% less VRAM. Both halves of that sentence deserve scrutiny, so here's the scrutiny.
 
