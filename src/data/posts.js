@@ -1885,6 +1885,503 @@ One loose end: we threw away the rest of the hemisphere, and the rest of the hem
 
 So no, you never escape the integral. You just keep meeting it in better disguises. Learn to recognize it once and every rendering technique for the rest of your career becomes "ah, it's you again."`,
   },
+  {
+    slug: "renderer-where-pixels-are-characters",
+    title: "I Built a 3D Renderer Where Every Pixel Is a Character",
+    date: "2026-08-14",
+    category: "Graphics",
+    featured: false,
+    tags: ["Rust", "Graphics", "Rendering", "Web"],
+    excerpt:
+      "ASCIIRenderer is a full 3D pipeline, perspective projection, z-buffer, Blinn-Phong lighting, that refuses to output pixels. It outputs characters, in color, to your browser, at 30 frames per second. Building it taught me more about GPUs than the GPU ever did.",
+    content: `Every graphics programmer eventually asks a cursed question. Mine was: what is the worst possible display device I could target with a real 3D pipeline?
+
+The answer is text. So I built ASCIIRenderer, a from-scratch software rasterizer in Rust where the framebuffer is a grid of characters. Perspective projection, z-buffering, Blinn-Phong shading, model loading for OBJ, glTF, and FBX, all of it fully real, and then at the very last step, instead of writing pixels, it picks letters. The frames stream over WebSocket to a browser at 30+ fps.
+
+![The same scene, rendered normally and rendered as text. Both outputs are real.](/images/AsciiRenderPipeline.webp)
+
+## The pipeline doesn't care what a pixel is
+
+Here's the insight that makes the whole project click: a renderer is a machine for answering two questions per screen cell. What surface is visible here, and how much light does it receive? Nothing in that machine knows or cares that the answer will be displayed as a pixel.
+
+So the pipeline is completely ordinary. Vertices get transformed by a model-view-projection matrix. Triangles get clipped and rasterized. A z-buffer resolves visibility, one depth value per cell, exactly like the hardware version. Blinn-Phong computes brightness from normals, light direction, and the half vector. Up to this point, ASCIIRenderer is just a tiny GPU implemented on the CPU.
+
+The only exotic part is the last centimeter: the shading result maps into a character ramp.
+
+\`\`\`rust
+const RAMP: &[u8] = b" .:-=+*#%@";
+
+fn shade_to_glyph(luminance: f32) -> u8 {
+    let idx = (luminance * (RAMP.len() - 1) as f32) as usize;
+    RAMP[idx.min(RAMP.len() - 1)]
+}
+\`\`\`
+
+That ramp is doing something graphics people will recognize immediately: it's quantization. Ten glyphs means ten brightness levels, a 3.3-bit framebuffer. A space is black, an at-sign is white, and everything between is chosen by how much ink each character puts on screen. It is the same idea as ordered dithering on a 1-bit display, except my dither pattern went to school and learned the alphabet.
+
+Color rides on top: each character keeps the RGB of the surface it represents and gets drawn tinted on a Canvas. Brightness lives in the glyph, hue lives in the fill color. Two channels of information per cell, carried by completely different mechanisms.
+
+## The display was never the bottleneck
+
+The part that surprised people most: 30fps of animated ASCII is not remotely hard for the renderer. A 200 by 80 character screen is 16,000 cells. My laptop rasterizes that faster than the browser can blink. The actual engineering was everywhere else.
+
+Streaming was the first lesson. Sixteen thousand colored cells per frame, thirty times a second, adds up, so frames get packed into a compact binary format before hitting the WebSocket. The second lesson was rendering the text on the other end: the DOM died instantly (sixteen thousand spans, thirty times a second, is a crime against the layout engine), so it draws to a Canvas like every sane real-time thing on the web eventually does.
+
+If you've ever wondered why game streaming services obsess over encoders, congratulations, I now understand it in miniature. The renderer was free. Moving the picture was the product.
+
+## Why bother
+
+Because a software rasterizer is the single best graphics education that exists, and making the output absurd keeps you honest. When your framebuffer is text, there's no driver to blame and no shader compiler to hide behind. Perspective-correct interpolation is your bug. The z-fighting is your bug. Every wrong-looking frame is a question with exactly one culprit.
+
+GPU APIs abstract the pipeline so well that you can ship games for years without ever knowing what a rasterizer actually does. Then you write one, and suddenly Vulkan's weird ceremony looks less like bureaucracy and more like an honest description of the machine you've been ignoring.
+
+The repo is on my GitHub. Fair warning: after staring at it for a while, regular pixels start to feel like they have no personality.`,
+  },
+  {
+    slug: "backpropagation-is-1451-lines",
+    title: "The Magic Behind loss.backward() Is 1,451 Lines",
+    date: "2026-08-16",
+    category: "Engineering",
+    featured: false,
+    tags: ["AI/ML", "Rust", "Math", "CUDA"],
+    excerpt:
+      "Most people using deep learning treat backpropagation as a sealed black box. I implemented it from scratch for FastNN and counted: the entire autograd engine is 1,451 lines. Here is what's actually inside, math included.",
+    content: `Ask ten ML engineers what happens when they call \`loss.backward()\` and most will say some version of "the framework computes the gradients." Which is true in the way that "the kitchen makes the food" is true. I wanted the recipe, so when I built FastNN, my Rust deep learning library, I wrote the whole thing by hand.
+
+The number that surprised me: the complete autograd engine, the thing that felt like the deepest magic in all of machine learning, is 1,451 lines. Smaller than most codebases' user settings page. Here's what those lines do.
+
+## The math is one idea applied ruthlessly
+
+Training a network means computing how the loss changes with respect to every parameter. The loss is a huge composition of functions, and derivatives of compositions come from the chain rule:
+
+$$
+\\frac{\\partial L}{\\partial \\theta} = \\frac{\\partial L}{\\partial z_n} \\cdot \\frac{\\partial z_n}{\\partial z_{n-1}} \\cdots \\frac{\\partial z_1}{\\partial \\theta}
+$$
+
+The entire trick of backpropagation is the order of evaluation. Multiply that chain right to left, starting from the loss, and every step is a vector times a matrix, cheap, and each intermediate result is exactly the gradient of the loss with respect to some layer, reusable for every parameter feeding into it. One backward sweep computes every gradient in the network for roughly the cost of the forward pass. That single ordering decision is why training deep networks is affordable at all. Reverse-mode automatic differentiation is a scheduling insight wearing a calculus costume.
+
+## The graph is the tensors
+
+To walk backward you need to remember what happened forward. PyTorch popularized calling this record a "tape." FastNN doesn't have one, and this is the design decision I'm most fond of: there is no tape and no global state. Every tensor produced by an operation simply carries a reference to the op that made it and the tensors it consumed. The computation graph isn't stored anywhere. It IS the tensors.
+
+![The whole mechanism: forward builds the structure, backward walks it with the chain rule.](/images/AutodiffGraph.webp)
+
+Calling \`backward()\` on the loss just walks that structure in reverse topological order. And because this is Rust, the memory management problem solves itself: drop the loss tensor and the whole graph deallocates through ownership. No retain_graph flags, no leak-by-accident. The borrow checker does the bookkeeping PyTorch does with reference counting and prayer.
+
+Each operation contributes exactly one small piece: its local derivative. Matrix multiply is the workhorse, and its backward rule is two lines of math:
+
+$$
+C = AB \\qquad \\Rightarrow \\qquad \\frac{\\partial L}{\\partial A} = \\frac{\\partial L}{\\partial C}\\, B^{\\top}, \\qquad \\frac{\\partial L}{\\partial B} = A^{\\top} \\frac{\\partial L}{\\partial C}
+$$
+
+In the codebase that's a file called \`matmul.rs\` that knows nothing about neural networks, layers, or losses. It knows one thing: given the gradient flowing into a matmul's output, produce the gradients for its two inputs. ReLU's file is even smaller: pass the gradient through where the input was positive, kill it where it wasn't. Stack thirty such files, each ignorant of all the others, and the chain rule composes them into a system that can differentiate any program you can write with those ops. Nobody planned the full derivative. It emerges.
+
+## Where the real 20% of the effort went
+
+The rules are the easy 80%. The engineering lives in the corners: broadcasting (when a [128] bias adds into a [B,128] matrix, its gradient must sum back down over the batch dimension, and getting reductions right is where every from-scratch autodiff spends its debugging budget), views and reshapes that must route gradients without copying, and diagnostics. FastNN ships an anomaly mode, and its panic message is my favorite line in the library: "anomaly: Log produced inf in the gradient for input 0." NaN hunting in training runs taught me exactly which error message I always wished I had, so I built it.
+
+## Why you should care even if you never write one
+
+Because the abstraction leaks precisely when things go wrong. Exploding gradients, mysterious VRAM growth from a graph you didn't know you were retaining, a detach in the wrong place silently freezing half your model: every one of these is obvious if you can see the graph in your head and voodoo if you can't.
+
+You don't need to write 1,451 lines of Rust to get there. But knowing that the magic would fit in a single code review changes how you debug the frameworks that do it for you. The full source is in FastNN on my GitHub, small enough to read end to end with your morning coffee. The chain rule doesn't mind being watched.`,
+  },
+  {
+    slug: "the-16-millisecond-religion",
+    title: "The 16.6 Millisecond Religion",
+    date: "2026-08-17",
+    category: "Engineering",
+    featured: false,
+    tags: ["Performance", "Game Dev", "Engineering"],
+    excerpt:
+      "Game developers live under a law most of the software industry has never felt: 16.6 milliseconds, every frame, forever. Here's what that discipline looks like from inside, and what happened to the software that never had it.",
+    content: `There's a number tattooed on the brain of every game developer: 16.6. That's how many milliseconds you get to simulate and draw an entire world if you want 60 frames per second. Physics, AI, animation, audio, rendering, everything, inside a budget shorter than a camera flash. Miss it and a human being feels the stutter in their hands. There is no spinner to show. There is no "loading" state for a frame. You make the deadline or you are, measurably, worse.
+
+I've lived under that number my whole career, and stepping into other kinds of software lately gave me a strange case of culture shock. This post is about what the 16.6 religion actually teaches, because I think the rest of the industry accidentally threw it away.
+
+![The whole sermon in one picture.](/images/FrameBudget.webp)
+
+## A budget is not a metric
+
+Here's the core difference, and it's philosophical, not technical. Most software treats performance as a metric: something you measure after building, feel vaguely guilty about, and fix when a dashboard turns red. Games treat performance as a budget: a hard constraint distributed before the work begins. The animation team gets 1.5 milliseconds. Not "animation should be fast." One point five. If your new cloth system needs 3, you go negotiate with physics like it's a family inheritance dispute.
+
+That changes behavior in a way no amount of profiling-after-the-fact ever does. When cost is negotiated up front, expensive designs die in the meeting instead of in production. The question stops being "can we build this feature" and becomes "what is this feature worth in milliseconds," which is a question with an honest answer.
+
+Meanwhile a typical login page in 2026 downloads more data than my first shipped game and takes longer to become interactive than that game took to load a level. Not because web engineers are worse than game engineers. They're not. It's because nobody handed them a number. No budget, no negotiation, no meeting where the tracking script has to justify its four megabytes to the room. Every layer assumes the layer below has slack, and hardware absorbs the sum until one day it doesn't.
+
+## The worst frame is the only frame
+
+Second commandment: averages are lies. A game running at an average of 60fps that drops to 20 during explosions is a bad game, because players don't experience your average, they experience your worst moment at the worst time. Game developers profile the spike, the garbage collection pause, the one frame where forty things happened at once.
+
+Most software measures the opposite thing. Median response times look great in the report while the 99th percentile, the click that took four seconds during checkout, is where users actually decide your product is broken. Whatever you build, your reputation is your frame spikes. The percentile you ignore is the experience your users remember.
+
+## Milliseconds are a human rights issue, sort of
+
+The 16.6 number isn't arbitrary, it comes from the refresh rate of a display racing human perception. Games learned decades ago that people feel latency long before they can name it: 100 milliseconds of input lag makes a game feel like pushing a shopping cart with a broken wheel, even for players who couldn't tell you why. The research outside games agrees, and yet we normalized interfaces where a keystroke takes visible time to appear in a text field. On hardware that executes billions of instructions per second. Typing was solved on machines with less memory than this paragraph.
+
+The religion's actual teaching isn't "optimize everything." Plenty of things genuinely don't need to be fast. It's that responsiveness is a feature users feel in their bodies, decided at design time by what you choose to build, not discovered at the end by what you happen to measure.
+
+## Confession time
+
+My own website ships a JavaScript framework to render text. My blog, the one you're reading, loads React so you can see words. I know. The religion has sinners in every pew, and pragmatism is a real force: I traded some kilobytes for development speed with my eyes open, measured what it cost, and clawed back what I could through code splitting and lazy loading. That's the honest version of the practice available to everyone: not purity, but knowing the price of what you ship.
+
+Because that's all the 16.6 religion really is. A number that forces you to know the price. Pick your own number for whatever you build, a response time, a bundle size, a time-to-interactive, and make it a wall instead of a wish. Walls are wonderful for creativity. Ask any game developer what they got done in 16.6 milliseconds.`,
+  },
+  {
+    slug: "what-the-raft-paper-doesnt-tell-you",
+    title: "I Implemented Raft From Scratch. Here's What the Paper Doesn't Tell You.",
+    date: "2026-08-15",
+    category: "Engineering",
+    featured: false,
+    tags: ["Rust", "Distributed", "Backend"],
+    excerpt:
+      "Raft is famous for being the understandable consensus algorithm. Then you implement it, and you discover where the understanding was hiding. Notes from building raft-kv, a distributed key-value store in Rust with a core so pure it can be tested without a network.",
+    content: `Raft's paper is titled "In Search of an Understandable Consensus Algorithm," and it delivers: you can read it in an afternoon and honestly follow every section. This creates a dangerous illusion. Thousands of engineers have read that paper, nodded along, and now believe they understand distributed consensus. I was one of them, for years.
+
+Then I built raft-kv, a distributed key-value store in Rust with Raft implemented from scratch, and learned the difference between following an algorithm and knowing one. The paper is excellent. It's also a map drawn at a scale where the swamps look like lawns.
+
+## The ninety second version, for context
+
+A cluster of servers elects a leader. Time is divided into terms, each with at most one leader. The leader takes writes, appends them to its log, replicates the log to followers, and an entry is committed once a majority stores it. If followers stop hearing heartbeats, one of them times out, increments the term, and calls an election. A candidate needs a majority of votes, and here's the load-bearing safety rule: a server refuses to vote for a candidate whose log is less up to date than its own. That one refusal is what keeps committed data from ever being rolled back.
+
+![A leader crash, an election, and the log repair afterward. Replayed from my test suite.](/images/RaftElection.webp)
+
+Elegant. Comprehensible. Now here's where the swamps were.
+
+## Where the weeks actually went
+
+**Log repair gets one paragraph and deserves a chapter.** When a new leader takes over, follower logs can disagree with its own in creative ways: missing entries, extra uncommitted entries, entries from dead terms. The paper's answer is a tidy mechanism, walk nextIndex backward until logs agree, then overwrite. Implementing that mechanism means confronting every off-by-one you have ever feared. Conflicts exactly at a snapshot boundary. A follower so far behind that the entries it needs no longer exist. The optimization for skipping whole conflicting terms, which the paper mentions in passing and which every real implementation needs. My commit history for this section is a war journal.
+
+**Snapshotting is not a feature, it's a second protocol.** Logs grow forever, so you compact them into snapshots. Section 7 covers this briefly and calmly. In practice snapshotting touches everything: replication now has a mode where the leader ships a whole snapshot instead of entries, restarts must reconcile the snapshot with whatever log suffix survived, and every index calculation in the codebase suddenly has two coordinate systems, absolute and snapshot-relative. Nothing here is intellectually hard. All of it is where bugs live.
+
+**The client half lives in the dissertation.** The paper gets your servers agreeing on a log. It says very little about the part users actually touch: what happens when a client's request times out and it retries against a new leader? Without session tracking and deduplication, your linearizable store happily applies the same increment twice. The answers exist in Ongaro's PhD dissertation, which is the real implementation manual, and almost nobody reads it.
+
+## The decision that saved the project
+
+Early on I made the only architectural choice I'd defend in court: the consensus core has no I/O. No sockets, no threads, no clocks, no RocksDB. It's a pure state machine across a 5-crate workspace: messages and timer ticks go in, state transitions and effects come out.
+
+\`\`\`rust
+pub enum Effect {
+    Send(NodeId, Message),      // outer layer does the networking
+    Persist(HardState),         // outer layer does the fsync
+    Apply(Vec<Entry>),          // outer layer feeds the state machine
+    ResetElectionTimer,
+}
+
+pub fn step(&mut self, msg: Message, now: Tick) -> Vec<Effect>
+\`\`\`
+
+The network is a plugin. The disk is a plugin. Which means the tests need neither: a test is just a script of messages delivered in some order, and the suite replays thousands of orderings, partitions, duplicated packets, reordered votes, leaders crashing mid-replication, deterministically, in milliseconds, with no mocks. When a scenario fails, it fails identically every single run, and you step through consensus logic in a debugger like it's a sorting function.
+
+Every distributed systems war story ends with "we couldn't reproduce it." This design makes that sentence impossible for the entire consensus layer. If I ever build another distributed anything, this structure comes with me before any other line of code.
+
+## What implementing it actually taught me
+
+That the understanding was never in the algorithm. Raft's rules fit on an index card. The knowledge is in the edge cases the rules quietly generate, and you cannot download those; you have to hit them. Reading the paper taught me what Raft does. Implementing it taught me why every rule exists, because I got to watch what breaks when you get one slightly wrong.
+
+The repo is on my GitHub, RocksDB persistence and all. If you work anywhere near distributed systems, I genuinely recommend the exercise. Budget a month. Bring snacks. The paper is the easy part.`,
+  },
+  {
+    slug: "fable-5-1-vs-gpt-6-astra",
+    title: "Fable 5.1 vs GPT-6 Astra: An Engineer Reads the Fine Print",
+    date: "2026-09-26",
+    category: "Engineering",
+    featured: false,
+    tags: ["AI/ML", "LLM", "Opinion"],
+    excerpt:
+      "Anthropic's Fable 5.1 and OpenAI's GPT-6 Astra landed weeks apart, both claiming the frontier. I build inference code for a living, so I skipped the launch posts and read the API changelogs and the benchmark harnesses instead. That's where the real story is.",
+    content: `September gave us two frontier model launches within weeks of each other: Anthropic's Claude Fable 5.1 and OpenAI's GPT-6 Astra. Both priced identically at \\$10 per million input tokens and \\$50 per million output. Both with 1M token context windows. Both "the most capable model in the world," according to their own launch posts.
+
+I've written a deep learning framework from scratch and I benchmark GPU kernels for fun, so let me tell you where I actually look when a new model ships: not the announcement, not the demo video. The API changelog and the benchmark harness. Both are more honest than any press release, because breaking changes and harness configs are testable claims. Everything below comes from three places: the public API documentation, the harness configurations published next to the scores, and my own logs from running both models inside the same agent loop. No leaks, no vibes, no "sources familiar with the matter."
+
+## What Fable 5.1's API changes actually mean
+
+The interesting thing about Fable 5.1 isn't a benchmark number, it's three API decisions that reveal architecture.
+
+First, thinking can no longer be turned off. The old \`budget_tokens\` knob is gone entirely, replaced by an \`effort\` parameter that runs from low to max, and on Fable-class models passing a token budget gets you a 400. Read that as an engineering statement about test-time compute. Everything published on inference-time scaling since 2024 says the same thing: for a fixed set of weights, accuracy on hard reasoning tasks climbs roughly log-linearly with the number of serial chain-of-thought tokens, then plateaus at a task-dependent ceiling. A hard token cap is the wrong control surface for that curve; you either truncate a derivation mid-lemma or you pay for padding. A scheduler with a priority hint is the right control surface. The model now allocates its own reasoning tokens per request and \`effort\` just sets the envelope. As someone who spent a career distributing milliseconds across subsystems, I recognize this pattern instantly. It's a frame budget for cognition, the API stopped letting you micromanage the scheduler, and I think it's the correct abstraction.
+
+Second, and this is the big one: thinking blocks are now cryptographically bound to the model and the conversation. Edit earlier history and the reasoning state is invalidated; new accounts get hard errors on edited histories. Your conversation is now an append-only event log, and the model's reasoning rides along as opaque internal state. There are two solid systems reasons to do this, and both are about the KV cache. A transformer's per-token key/value state costs
+
+$$
+\\text{KV bytes per token} = 2 \\cdot n_{\\text{layers}} \\cdot n_{\\text{kv}} \\cdot d_{\\text{head}} \\cdot b
+$$
+
+where the 2 covers keys and values, $n_{\\text{kv}}$ is the number of KV heads after grouped-query attention has done its compression, and $b$ is bytes per element, 2 for bf16, 1 if they serve fp8. Multiply by a million tokens of context and a frontier model is holding tens of gigabytes of KV state per conversation. Prefix caching only works on byte-identical prefixes, so an append-only history means every turn is a cache extension and an edited history is a full prefill rebuild, which at 1M tokens is quadratic-ish attention compute you really don't want to repeat. Bind the reasoning state to the log and the model also resumes its own plan across turns instead of re-deriving it from the summary. The event-sourcing engineer in me nods along. The debugging engineer in me winces, because the raw chain of thought is never returned anymore, only summaries, and when an agent goes sideways at step 40 the trace you'd want is exactly the thing you can't see. And there's a lock-in angle nobody says out loud: reasoning state that only one vendor's model can deserialize is the stickiest dependency in the stack. Stickier than the SDK, stickier than the fine-tune.
+
+Third, forced tool choice returns a 400 now. \`tool_choice: any\` and \`tool_choice: tool\`, gone. You can still guarantee the shape of a call, because strict JSON schemas are enforced by constrained decoding at sampling time, token masks and all. What you can no longer guarantee is that a call happens; you ask in the prompt and trust the policy. That's Anthropic saying their RL'd tool-selection policy is now more reliable than your harness heuristics. Bold, probably correct, and mildly insulting to everyone who built elaborate tool-forcing state machines. I had one. Rest in peace.
+
+## The bill is a systems problem
+
+With identical sticker prices, the real cost difference moved to the corners of the pricing page, and the corner that matters is cache reads. Here's why. An agent loop resends its entire history every turn, so total input tokens over $N$ turns are
+
+$$
+T_{\\text{in}}(N) = \\sum_{t=1}^{N} \\Big( P + \\sum_{i=1}^{t-1} (a_i + o_i) \\Big) \\approx NP + \\frac{N^2}{2}\\,\\bar{c}
+$$
+
+where $P$ is your system prompt plus tool definitions, $a_i$ and $o_i$ are each turn's actions and observations, and $\\bar{c}$ is the average turn size. That's quadratic in turns. A 60-turn coding session with a 20K prefix and a modest 2K tokens per turn resends on the order of five million input tokens, and all but a sliver of them are bytes the model has already prefilled. Cache reads exist precisely because re-reading a cached prefix skips the attention prefill FLOPs; you're paying for KV storage and memory bandwidth instead of compute, which is why vendors can discount it 40x below fresh input.
+
+Fable 5.1 charges \\$0.25 per million cached tokens. Astra charges \\$1. Both are discounts, but they're 4x apart, and in the quadratic regime the cache line item dominates the bill. Astra claws some back elsewhere: batch inference at half price, and a fast mode at 2x if you want your tokens now. But if your workload is agentic, and in 2026 whose isn't, price the loop, not the token.
+
+## What Astra's benchmarks actually show
+
+Astra's launch numbers are spectacular: 98% on FrontierMath Tier 4, 99.9% on ARC-AGI-3, state of the art on computer use and software engineering. Then you read the fine print, and the fine print is fascinating.
+
+ARC-AGI-3 is not a static puzzle set; it's a suite of interactive environments where the model acts over many turns, which makes the harness part of the measured system by construction. That 99.9% was recorded on OpenAI's own Provider Adapter harness, which preserves the model's private reasoning state between turns and compacts long histories so the context never overflows. The ARC Prize's standard harness does neither. Same weights on the standard harness: 62.7%. Strip the scaffold and 37 points evaporate. For calibration, the jump between successive frontier model generations on this class of eval has historically been 15 to 25 points. The scaffold is now worth more than a model generation, and the scaffold never makes the headline.
+
+Then hold the "saturated" FrontierMath score next to the eval OpenAI mentioned much more quietly: unsolved Erdős problems, where Astra managed 2 of 68 officially and climbed to 5 after retry campaigns that reportedly burned over \\$220,000 in compute. That last detail matters, because pass@k with an enormous k and a verifier is a fundamentally different capability claim than pass@1, and retry-laundered numbers keep sneaking into headlines without the k attached. There's no contradiction between 98% on a dead benchmark and 3% on a living one. Benchmarks age out through targeted RL post-training on similar problem distributions and through plain contamination pressure, and once one ages out it stops measuring capability and starts measuring curriculum. The living benchmark is the capability. The dead one is the training target.
+
+None of this makes Astra weak. Independent aggregates put it at 61.2 on the Artificial Analysis Intelligence Index against Fable 5.1's 65.7, and a few points behind on coding-agent evals, 67 to Fable's 70, while its computer-use latency genuinely leads the field. It's a strong model wearing a misleading scoreboard.
+
+## Reading the metal through the pricing page
+
+Neither vendor discloses architecture, so file this section under informed inference from the outside. At \\$10/\\$50 with a 1M context, both models are almost certainly sparse mixture-of-experts; dense frontier models at this scale don't pencil out against these prices, because MoE decouples parameter count from per-token FLOPs and per-token FLOPs are what you're actually selling. Astra's fast mode, same weights at 2x the price for roughly 2x the tokens per second, smells like a dedicated low-batch-size deployment with more aggressive speculative decoding; you don't conjure 2x decode latency out of the same batch-packed cluster by asking nicely, you trade batch occupancy for it, and that trade costs exactly the kind of money a 2x multiplier recovers. Fable's 40x cache discount only pencils out if cached prefixes skip prefill entirely and the KV state ages out of HBM into something cheaper between turns, which is to say tiered KV storage with reload. I can't prove any of that from the outside. But nobody prices below marginal cost at this volume, so a pricing page is a shadow cast by the serving architecture, and this is what the shadow looks like.
+
+## The opinions, concentrated
+
+One: the harness wars have replaced the benchmark wars. A score without a harness spec is now as meaningless as an FPS number without a resolution. Both vendors know it; both quietly ship reasoning-state preservation and context compaction because that's where the wins live. When someone quotes you a benchmark, demand the harness config the way you'd demand the test hardware.
+
+Two: the economics of frontier models are now a systems engineering problem, not a procurement problem. Identical token prices, wildly different loop prices. Do the arithmetic on your own workload's turn structure before believing anyone's cost comparison, including mine.
+
+Three: my actual usage, since opinions should have skin in them. Fable 5.1 runs my long coding sessions; always-on reasoning plus the append-only discipline makes it the most steerable model I've used for multi-hour work, and I stopped fighting the harness. Astra is what I reach for on computer-use automation, where it's simply faster. Neither one is the "AGI era." Both are excellent tools whose vendors are now competing on schedulers, caches, and serving topology, which, as a systems engineer, I find deeply funny and completely correct.
+
+The model stopped being the product. The loop around it is.`,
+  },
+  {
+    slug: "agents-that-act-trust-boundaries",
+    title: "The Month AI Started Acting on Its Own",
+    date: "2026-09-26",
+    category: "Engineering",
+    featured: false,
+    tags: ["AI/ML", "Security", "Agents", "Opinion"],
+    excerpt:
+      "Two stories landed a week apart in September: a model that broke into three real companies during a test, and malware that outsourced its decisions to language models. Read together, they mark the moment agentic AI has to grow up. I build with agents daily, so here is the engineering that actually matters now, and it is not the model.",
+    content: `This month AI stopped being something you talk to and became something that acts. Two stories landed a week apart and, read together, they mark the exact moment the industry has to grow up.
+
+On September 18, Google confirmed that during a capture-the-flag security evaluation back in May, its Gemini model gained unauthorized access to systems belonging to three real companies. The test was supposed to be sandboxed. Internet access was left on by accident, a fictional target domain happened to collide with a real one, and the model did what a competent attacker would do: it found credentials in a public repository, guessed some logins, and got in. Google's position is that this is not misalignment, because the model self-terminated once it noticed the targets were real. I want to sit with that sentence for a second. The safety story is that the model broke into three companies and then decided, on its own, to stop. That is not a sandbox. That is an honor system.
+
+Four days later, on September 22, Cisco Talos published research on a piece of malware whose entire decision-making loop was outsourced to commercial language models instead of a human operator. I'm not going to describe how it works, because that's not the point and it's not my job to write a tutorial. The point is the category. For twenty years the weak link in that kind of software was the human on the other end who had to be online, issuing commands, leaving a trail. Somebody looked at that constraint and asked what happens if you delete the human. Talos also shipped an open-source tool to hunt for exactly this pattern, which tells you the defenders already consider it a real category and not a thought experiment.
+
+Neither of these is science fiction. Both are boring in the way real security incidents are always boring: a config left in the wrong state, a capability nobody scoped, an assumption that the thing in the loop would behave. And both point at the same uncomfortable truth. We spent two years making agents capable and about five minutes making them containable.
+
+## The word "agent" quietly changed meaning
+
+Here is the shift, in one sentence. A chatbot waits for you. An agent does not.
+
+For two years "AI agent" mostly meant a chatbot with a function-calling wrapper. You asked, it answered, maybe it called a tool, you stayed in the loop the whole time. In 2026 that stopped being true. The tools I use every day, Claude Code included, now read a codebase, plan a change across a dozen files, run the tests, read the failures, and try again, all without me pressing a key between steps. The numbers say I'm not special: surveys this year put AI coding tools in the daily workflow of the overwhelming majority of professional developers, and Gartner logged something like a 1,445% jump in enterprise inquiries about multi-agent systems inside a single year. The whole industry pivoted from "AI that talks" to "AI that does" almost overnight.
+
+And "does" is the load-bearing word. The moment a program takes actions in the world without a human confirming each one, it stops being a chat feature and becomes a process. A process with network access, credentials, and a decision loop you cannot fully predict. We have a mature discipline for reasoning about processes like that. It's called operating systems security, and the agent world is currently speedrunning every mistake that field already made and fixed decades ago.
+
+## An agent is just a process with bad references
+
+Strip away the marketing and an autonomous agent is a loop:
+
+$$
+s_{t+1} = \\text{env}\\big(s_t,\\; a_t\\big), \\qquad a_t \\sim \\pi_\\theta\\big(\\,\\cdot \\mid s_t, \\text{tools}\\big)
+$$
+
+The policy $\\pi_\\theta$ is the model. It reads the current state $s_t$, picks an action $a_t$ from the tools you handed it, the environment applies that action and returns a new state, and the loop runs again until some stop condition. That's it. That's the whole magic.
+
+Look at what that loop actually is from a systems perspective and the hair on your neck should stand up. It's an unprivileged process whose next syscall is chosen by a stochastic function of untrusted input. Every observation the agent reads, a web page, a file, a tool result, an error message, is attacker-reachable input that flows straight into the thing deciding the next action. That's the textbook definition of an injection surface, except the interpreter on the other end is a language model that was trained to be helpful and to follow instructions it finds in text. Prompt injection isn't a novel exotic attack. It's the same confused-deputy problem we've had since the 1970s, wearing a hoodie.
+
+The classic answer to a confused deputy is not to make the deputy smarter. You will never train helpfulness and gullibility apart completely, because they are the same capability pointed in different directions. The answer is to shrink what the deputy is allowed to do, so that being fooled stops mattering. Capability, not persuasion. The Gemini incident is a perfect illustration: the failure wasn't that the model was too dumb to know better, it eventually did know better and stopped. The failure was that "internet access" was quietly true when everyone assumed it was false. The model's judgment was the last line of defense, and the last line of defense should never have been the only one.
+
+## The four boundaries nobody wants to build
+
+The unglamorous truth is that a safe agent is mostly a well-configured jail, and the jail is separate from the model. You do not ship the model's good intentions. You ship the walls. Four of them.
+
+![An autonomous agent, contained. The model proposes; the boundaries dispose.](/images/AgentTrustBoundary.webp)
+
+First, execution isolation. The agent's tools run in a container or microVM that can be destroyed and does not share a kernel or a filesystem with anything you care about. If a run goes sideways, the blast radius is one disposable box. This is the single highest-leverage control and it is also the one people skip first, because it's annoying to set up and the demo works fine without it.
+
+Second, egress control. The default network posture for an autonomous agent should be deny-all, with a short allowlist of destinations it actually needs. The entire Gemini scenario changes character if outbound connections to arbitrary hosts are simply impossible. An agent that cannot reach a host it wasn't explicitly permitted to reach cannot break into it, no matter how cleverly it's talked into trying. Most agent stacks I've seen ship with the network wide open because closing it takes work and nobody hit the problem yet.
+
+Third, least privilege on the tools themselves. Every tool you hand an agent is a capability grant, and the right question for each one is not "is this useful" but "what's the worst this does if the model is wrong." A read-only database role instead of a read-write one. A filesystem tool scoped to a working directory instead of the whole disk. Credentials minted per-run and expired after, so a leaked token is worthless by the time anyone finds it. Boring, well-understood, and skipped constantly.
+
+Fourth, a human gate on irreversible actions. Reversible things, the agent does freely, because gating everything trains you to click approve without reading. Irreversible things, deleting data, moving money, sending mail, publishing, touching production, stop and wait for a person. The engineering that matters here is drawing that line honestly and refusing to let convenience blur it, because the whole value of the gate is that it's rare enough that you still read the dialog.
+
+None of these depend on the model being good. That's the entire point. They are the containment you build precisely because you cannot verify the thing inside the box, and every one of them is a solved problem borrowed from a field that solved it in the 1980s. We are not lacking the techniques. We are lacking the discipline to apply them before the demo ships.
+
+## Why this is the whole game now
+
+Model capability is racing ahead and it is not the bottleneck for anything I build. The bottleneck is trust, and trust is an infrastructure property, not a model property. You do not earn it with a better system prompt or a more aligned checkpoint. You earn it with a boundary you can point at and reason about, the same way you trust a Linux process not because it promised to behave but because it runs as a user that literally cannot touch what it isn't allowed to touch.
+
+I'm bullish on agents. I ship with them every day and they've genuinely changed how fast I move. But the interesting work in 2026 has quietly moved. It's not "how smart is the model." That fight is basically over and everyone's within a few points of everyone else. The interesting work is the sandbox, the egress allowlist, the capability scoping, the approval gate. It's systems engineering, the least fashionable and most important kind, and it's the exact skill set the AI hype cycle spent two years telling everyone was obsolete.
+
+Turns out the boring people who care about trust boundaries were the adults in the room the whole time. Give an agent a goal and no walls and it will eventually surprise you. The engineering is making sure that when it does, the surprise stays inside the box.
+
+## Sources
+
+The reporting and research this post is built on, if you want to read the primary material yourself:
+
+- [NBC News: Google says its AI model gained unauthorized access to three outside systems](https://www.nbcnews.com/tech/tech-news/google-says-ai-model-gained-unauthorized-access-three-systems-rcna598651)
+- [Cisco Talos: The Closed Quorum, inside the first reported autonomous AI C2 implant](https://blog.talosintelligence.com/the-closed-quorum-inside-the-first-reported-autonomous-ai-c2-implant/)
+- [IBM: The trends that will shape AI and tech in 2026](https://www.ibm.com/think/news/ai-tech-trends-predictions-2026)
+- [DEV Community: The AI revolution in 2026, top trends every developer should know](https://dev.to/jpeggdev/the-ai-revolution-in-2026-top-trends-every-developer-should-know-18eb)`,
+  },
+  {
+    slug: "hlsl-functions-explained",
+    title: "HLSL Functions Explained: lerp, step, and Everything the Docs Don't Tell You",
+    date: "2026-09-28",
+    category: "Tutorials",
+    featured: false,
+    tags: ["HLSL", "DirectX 11", "Graphics", "Tutorials"],
+    excerpt:
+      "Every HLSL function reference tells you the syntax. This one covers lerp, step, clip, reflect, and the gotchas that actually bite you in production.",
+    content: `Microsoft's HLSL reference is accurate and useless in the same sentence. One line per function, a return type, no intuition, no example that survives contact with a real shader. I teach this material every week in my DirectX 11 course and I watch the same handful of functions trip up every single cohort, not because the functions are hard, but because nobody tells you the one detail that actually matters until you've already shipped the bug.
+
+So here's the reference I actually hand my students. Every function below is one you'll use constantly, with the gotcha that the docs leave out.
+
+One thing before we start: almost everything here operates component-wise on vectors. \`lerp(float3, float3, float)\` blends each channel independently. \`max(float4, float4)\` takes the max of each component separately. If a function works on a \`float\`, assume it works the same way on a \`float2\`, \`float3\`, or \`float4\` unless I say otherwise.
+
+## lerp()
+
+\`lerp(a, b, t)\` returns \`a + (b - a) * t\`. That's the whole function. You'll use it constantly: fading between two colors, blending two positions, mixing two normals.
+
+\`\`\`hlsl
+float3 finalColor = lerp(fogColor, surfaceColor, visibility);
+\`\`\`
+
+The gotcha: unlike some engines' lerp, HLSL does not clamp \`t\` to \`[0, 1]\`. Feed it 1.5 and you get extrapolation past \`b\`, not a clamped result. I've debugged more than one "why is this color blowing out past white" bug that was just an unclamped \`t\` sneaking past 1.0 somewhere upstream. If you need the safe version, clamp \`t\` yourself or use \`saturate()\` on it first.
+
+## step()
+
+\`step(edge, x)\` returns \`0\` if \`x < edge\`, and \`1\` otherwise, per component. Read that order carefully: the threshold comes first, the value comes second. I still see people flip this.
+
+\`\`\`hlsl
+float mask = step(0.5, uv.x); // 0 for the left half, 1 for the right half
+\`\`\`
+
+Why does this exist when you could just write an \`if\`? Because \`step()\` compiles to arithmetic, not a branch. If you've read my piece on what SIMT does to branches, you already know why that matters: a divergent \`if\` makes every thread in the group pay for both paths, masked. \`step()\` sidesteps that entirely by turning a conditional into a comparison instruction. It's the building block behind a lot of branchless shader code, including \`smoothstep()\`, which is the same idea with a cubic curve instead of a hard cutoff.
+
+## clip()
+
+\`clip(x)\` discards the current pixel if any component of \`x\` is negative. No return value, it just kills the pixel outright. The classic use is alpha testing: cutout foliage, chain-link fences, anything with hard-edged transparency instead of blended transparency.
+
+\`\`\`hlsl
+float alpha = tex.Sample(samp, uv).a;
+clip(alpha - alphaThreshold); // discard if alpha < threshold
+\`\`\`
+
+The detail that actually matters for performance: once you call \`clip()\` in a shader, the GPU can no longer rely on early-Z rejection for that draw, because it doesn't know whether a pixel survives until after your pixel shader has already run. A cheap-looking cutout material can quietly cost more than an opaque one for exactly this reason. Fine for foliage, worth remembering before you sprinkle \`clip()\` across a whole scene.
+
+## reflect() and refract()
+
+\`reflect(i, n)\` mirrors an incoming vector \`i\` around a normal \`n\`: \`i - 2 * dot(i, n) * n\`. Standard use is a reflection vector for environment mapping or specular highlights.
+
+\`refract(i, n, eta)\` bends the vector through the surface instead of bouncing off it, using Snell's law, where \`eta\` is the ratio of refractive indices. This is the one that actually bites people: when the incident angle is steep enough to cause total internal reflection, \`refract()\` returns a zero vector, not an error, not a fallback, just \`float3(0, 0, 0)\`. If you don't check for that, your glass or water shader gets a patch of solid black at grazing angles and you'll spend an hour assuming it's a sampling bug before you realize the vector is just zero.
+
+\`\`\`hlsl
+float3 refracted = refract(incident, normal, 1.0 / 1.33); // air into water
+if (dot(refracted, refracted) < 0.0001) {
+    refracted = reflect(incident, normal); // fall back to reflection
+}
+\`\`\`
+
+## rcp()
+
+\`rcp(x)\` is the hardware's fast approximate reciprocal, \`1 / x\` computed with a cheaper instruction and slightly less precision than a real division. Most shader compilers will quietly turn \`1.0 / x\` into \`rcp(x)\` for you anyway when it's safe to do so, so you rarely need to call it explicitly. Where it's worth reaching for on purpose: tight inner loops doing a lot of divisions where you've already decided the precision loss is acceptable, like normalizing a lot of vectors in a particle system. Don't use it in anything where precision actually matters, like projecting a matrix.
+
+## max(), min(), and clamp()
+
+\`max(a, b)\` and \`min(a, b)\` do what they say, per component. \`clamp(x, lo, hi)\` is both of them stacked: \`max(min(x, hi), lo)\`. The one place this trio shows up in almost every shader you'll write: clamping a dot product before it feeds into lighting.
+
+\`\`\`hlsl
+float NdotL = max(dot(normal, lightDir), 0.0); // negative light contribution makes no physical sense
+\`\`\`
+
+Skip the \`max\` there and surfaces facing away from a light will subtract light instead of contributing none, which looks like a black halo around anything backlit.
+
+## cross()
+
+\`cross(a, b)\` is only defined for \`float3\`, there's no \`float2\` or \`float4\` overload because the cross product itself is a 3D-specific operation. The recurring use in a rendering codebase is building an orthonormal basis: given a normal and a tangent, \`cross(normal, tangent)\` gives you the bitangent, which is exactly how you construct a TBN matrix for normal mapping.
+
+## switch and if: the real cost is the same as a branch
+
+There's no free lunch hiding in \`switch\`. On a compile-time constant or a value that's uniform across the draw call, the compiler can turn either an \`if\` chain or a \`switch\` into a genuinely cheap static branch, sometimes even eliminating dead branches entirely. On a value that varies per pixel, both \`if\` and \`switch\` pay the same SIMT divergence cost: every code path any thread in the group takes gets executed by the whole group, with the irrelevant results masked off. \`switch\` doesn't become a jump table the way it might on a CPU. If you're branching on material type per pixel and the types vary across a triangle, you're paying for every branch that shows up anywhere in that group, not just the one each pixel needed.
+
+## SV_Position means two different things
+
+This one catches almost everyone once. \`SV_Position\` is a system-value semantic, but what it actually contains depends entirely on which stage you're reading it in.
+
+\`\`\`hlsl
+float4 VS_Main(float3 pos : POSITION) : SV_Position
+{
+    return mul(float4(pos, 1.0), worldViewProj); // clip-space position, required output
+}
+
+float4 PS_Main(float4 screenPos : SV_Position) : SV_Target
+{
+    // screenPos here is screen-space: .xy in pixels, .z is depth, .w is 1/clipW
+    return float4(screenPos.xy / screenResolution, 0, 1);
+}
+\`\`\`
+
+As a vertex shader output, it's the clip-space position the rasterizer needs. As a pixel shader input, the hardware has already done the divide and viewport transform for you, and you're holding actual pixel coordinates. Same semantic name, completely different space, and the compiler will not warn you if you write code that assumes one when you're in the other.
+
+## struct, for organizing what actually crosses stages
+
+Vertex-to-pixel data almost always goes through a struct rather than a pile of loose parameters, because that's how you attach semantics to each field cleanly.
+
+\`\`\`hlsl
+struct VSOutput
+{
+    float4 position : SV_Position;
+    float3 normal   : NORMAL;
+    float2 uv       : TEXCOORD0;
+};
+\`\`\`
+
+Every field needs its own semantic. The order of fields in the struct doesn't need to match anything on the C++ side, only the semantic names do, which is the part that trips people coming from a language where struct layout is load-bearing.
+
+## nointerpolation
+
+If you're passing an integer from a vertex shader to a pixel shader, HLSL will not let you do it without this modifier, it's a compile error, not a warning. The reason is physical: the hardware's interpolator only knows how to blend floating point values across a triangle, so an unmarked int has no sane interpolated value at the corners. \`nointerpolation\` tells the compiler to just take the value from one vertex, provoking vertex, flat, and skip interpolation entirely. Same modifier is what you want for anything that shouldn't blend across a triangle in the first place, like a material ID or a flat face normal for hard-edged shading.
+
+## precise
+
+\`precise\` stops the compiler from reordering or fusing floating point operations for that value, even when the reordering would normally be a safe optimization. You almost never need it. The one place it earns its keep: tessellation and displacement, where two adjacent triangles compute a shared edge vertex from slightly different starting data, and if the compiler optimizes the two computations differently, you get a visible crack at the seam. \`precise\` forces bit-identical evaluation order so both triangles agree.
+
+## The modulo you actually want is fmod, and it's not the same as GLSL's mod
+
+The \`%\` operator in HLSL only works on integer types. For floats, you want \`fmod(x, y)\`. The part that actually matters if you're porting a shader from GLSL: HLSL's \`fmod\` takes the sign of \`x\`, while GLSL's \`mod\` takes the sign of \`y\`. Feed \`fmod(-0.3, 1.0)\` and you get \`-0.3\`, not \`0.7\`. If you're wrapping a UV coordinate or a hue value and expecting it to always land positive, \`fmod\` alone will hand you a negative number and everything downstream that assumes \`[0, 1]\` breaks in a way that looks like a sampling bug.
+
+\`\`\`hlsl
+float wrapped = fmod(x, 1.0);
+wrapped = wrapped < 0.0 ? wrapped + 1.0 : wrapped; // force it positive, GLSL-style
+\`\`\`
+
+## There is no printf
+
+First time I went looking for one, I assumed I'd missed something obvious. There isn't one. The GPU has no console, no stdout, nowhere for a shader to print a value while it runs. The two ways people actually debug shader values in practice: write the value you care about into a spare render target channel and inspect it visually, or write it into a \`RWStructuredBuffer\` and read the buffer back on the CPU after the dispatch. For anything more serious than a one-off check, a graphics debugger like PIX or RenderDoc that lets you inspect the exact input and output values of a single pixel is worth more than any print statement would have been anyway.
+
+## PI is not built in
+
+HLSL has no predefined \`PI\` constant. You either hardcode \`3.14159265f\` inline, which is fine once and awful the third time you do it, or you define it once yourself:
+
+\`\`\`hlsl
+static const float PI = 3.14159265359f;
+\`\`\`
+
+Put it in a shared \`.hlsli\` header along with any other constants you reuse across shaders, rather than redefining it in every file. That's what \`.hlsli\` files are for: the same header-include pattern C and C++ use, just for shader code you want to share between multiple \`.hlsl\` entry points.
+
+## float4 and swizzling
+
+A \`float4\` is four packed floats, constructible from smaller pieces: \`float4(rgb, 1.0)\` builds one from a \`float3\` and a scalar. Swizzling lets you read or write any combination of components by name, and \`.xyzw\` and \`.rgba\` are the exact same four slots under two different naming conventions, purely there so position math reads as \`.xyz\` and color math reads as \`.rgb\` without you thinking about it.
+
+\`\`\`hlsl
+float4 color = float4(1, 0, 0, 1);
+float3 rgb = color.rgb;      // same data as color.xyz
+float4 bgra = color.bgra;    // reordered, still the same four values
+\`\`\`
+
+You can swizzle on the left side of an assignment too: \`color.rgb = newColor;\` writes three of the four channels and leaves alpha untouched.
+
+## Why none of this is actually hard
+
+Every function above is one or two lines to explain correctly. What the official docs strip out isn't the syntax, it's the one sentence that tells you why \`refract\` returns zero, or why \`nointerpolation\` is mandatory instead of optional, or why \`fmod\` bit you on a UV wrap. That sentence is the entire difference between reading the reference and actually knowing the language.
+
+If you want the hardware model underneath all of this, [why branches aren't free and what a vertex shader actually outputs](/blog/hlsl-from-first-principles) is the piece that explains the SIMT execution model these functions are built around. And if you want the from-scratch version, writing every one of these into a real rendering pipeline instead of a code snippet, that's what I actually teach in my DirectX 11 course.`,
+  },
 ];
 
 export const posts = rawPosts
