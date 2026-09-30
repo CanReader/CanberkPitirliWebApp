@@ -79,17 +79,64 @@ body {
   }
 }
 
-/* ── KaTeX math in blog posts ── */
-.katex { font-size: 1.06em; color: #E4E4E7; }
-.katex-display {
-  margin: 1.75rem 0;
-  padding: 1.1rem 1.25rem;
-  background: #101012;
-  border: 1px solid #27272A;
-  border-radius: 0.75rem;
-  overflow-x: auto;
+/* ── Blog article layout ──
+   A centered reading column (content, ~68 characters of body text) with a
+   wider track that diagrams, code, and tables break out into. On phones both
+   tracks collapse to the screen width minus a 1rem gutter. */
+.article-grid {
+  display: grid;
+  grid-template-columns:
+    [full-start] minmax(1rem, 1fr)
+    [wide-start] minmax(0, 6rem)
+    [content-start] min(40rem, calc(100% - 2rem))
+    [content-end] minmax(0, 6rem)
+    [wide-end] minmax(1rem, 1fr)
+    [full-end];
 }
-.katex-display > .katex { font-size: 1.18em; }
+.article-grid > * { grid-column: content; min-width: 0; }
+.article-grid > .wide,
+.article-grid > .katex-display { grid-column: wide; }
+/* A divider already separates sections; don't stack the heading's margin on it. */
+.article-body hr + h2,
+.article-body hr + h3 { margin-top: 0; }
+.article-body h2 + h3 { margin-top: 1.75rem; }
+
+/* Body text: a screen-tuned text serif for long reads; headings, code, and UI
+   bits set their own families. */
+.article-body {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.1875rem;
+  line-height: 1.75;
+  color: #d4d4d8;
+  font-optical-sizing: auto;
+  font-feature-settings: "kern", "liga";
+  text-rendering: optimizeLegibility;
+  hanging-punctuation: first;
+}
+.article-body > :first-child { margin-top: 0; }
+@media (max-width: 639px) {
+  .article-body { font-size: 1.125rem; line-height: 1.7; }
+}
+
+/* ── KaTeX math in blog posts ── */
+.katex { font-size: 1.02em; color: #E4E4E7; }
+.katex-display {
+  margin: 2.25rem 0;
+  padding: 0.25rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.katex-display > .katex { font-size: 1.15em; }
+
+/* GFM footnotes */
+.article-body .footnotes {
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #27272A;
+  font-family: "Inter", sans-serif;
+  font-size: 0.9rem;
+  color: #A1A1AA;
+}
 
 /* ── Accessibility ── */
 
