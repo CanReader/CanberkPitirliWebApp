@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
+import { createPortal } from "react-dom";
 import { useParams, Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
@@ -26,6 +27,8 @@ import {
 import Navbar from "../components/Navbar";
 import ScrollProgress from "../components/ScrollProgress";
 import Seo from "../components/Seo";
+import BackToTop from "../components/BackToTop";
+import Reveal, { EASE_OUT, staggerParent, fadeUpChild } from "../components/Reveal";
 import NotFound from "./NotFound";
 import { trackEvent } from "../lib/analytics";
 import { usePostContent } from "../lib/postContent";
@@ -46,6 +49,26 @@ function nodeText(children) {
 
 /* ── Article elements ── */
 
+// Copy-style icon that flips to a check for a moment after the action works.
+function SwapIcon({ on, size, idle: Idle = Copy }) {
+  return (
+    <span className="relative inline-flex" style={{ width: size, height: size }}>
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.span
+          key={on ? "done" : "idle"}
+          initial={{ opacity: 0, scale: 0.4, rotate: -45 }}
+          animate={{ opacity: 1, scale: 1, rotate: 0 }}
+          exit={{ opacity: 0, scale: 0.4, rotate: 45 }}
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+          className="absolute inset-0 inline-flex"
+        >
+          {on ? <Check size={size} className="text-accent" /> : <Idle size={size} />}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  );
+}
+
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -61,7 +84,7 @@ function CopyButton({ text }) {
       aria-label={copied ? "Copied" : "Copy code"}
       className="flex items-center gap-1.5 rounded-md px-2 py-1 font-sans text-xs text-muted transition-colors hover:bg-white/5 hover:text-text"
     >
-      {copied ? <Check size={13} className="text-accent" /> : <Copy size={13} />}
+      <SwapIcon on={copied} size={13} />
       {copied ? "Copied" : "Copy"}
     </button>
   );
@@ -93,7 +116,7 @@ const LANGUAGE_NAMES = {
 
 function CodeFigure({ language, code }) {
   return (
-    <div className="wide group/code my-10 overflow-hidden rounded-xl border border-border bg-[#0f0f12]">
+    <Reveal className="wide group/code my-10 overflow-hidden rounded-xl border border-border bg-[#0f0f12]">
       <div className="flex items-center justify-between border-b border-border/70 py-1.5 pl-4 pr-2">
         <span className="font-sans text-xs text-muted">
           {language ? LANGUAGE_NAMES[language] ?? language : "Code"}
@@ -107,7 +130,7 @@ function CodeFigure({ language, code }) {
       ) : (
         <PlainCode code={code} />
       )}
-    </div>
+    </Reveal>
   );
 }
 
@@ -119,17 +142,37 @@ function PlainCode({ code }) {
   );
 }
 
-// Diagrams are detailed; clicking one opens it full screen.
+// Diagrams are detailed; clicking one opens it full screen. The overlay
+// grows out of the page so it's clear where the image came from.
 function ZoomableImage({ src, alt }) {
-  const dialogRef = useRef(null);
-  const open = () => dialogRef.current?.showModal();
-  const close = () => dialogRef.current?.close();
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef(null);
+  const closeRef = useRef(null);
+  const close = useCallback(() => setOpen(false), []);
+
+  useEffect(() => {
+    if (!open) return;
+    const root = document.documentElement;
+    const prevOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    closeRef.current?.focus();
+    const onKey = (e) => e.key === "Escape" && close();
+    window.addEventListener("keydown", onKey);
+    const trigger = triggerRef.current;
+    return () => {
+      root.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+      trigger?.focus();
+    };
+  }, [open, close]);
+
   return (
-    <figure className="wide my-12">
+    <Reveal as="figure" className="wide my-12">
       <button
+        ref={triggerRef}
         type="button"
-        onClick={open}
-        className="block w-full cursor-zoom-in rounded-xl"
+        onClick={() => setOpen(true)}
+        className="group/img block w-full cursor-zoom-in rounded-xl"
         aria-label={alt ? `Enlarge image: ${alt}` : "Enlarge image"}
       >
         <img
@@ -137,7 +180,7 @@ function ZoomableImage({ src, alt }) {
           alt={alt || ""}
           loading="lazy"
           decoding="async"
-          className="mx-auto block h-auto max-w-full rounded-xl border border-border"
+          className="mx-auto block h-auto max-w-full rounded-xl border border-border transition-[border-color,transform] duration-500 ease-out group-hover/img:border-muted/40 motion-safe:group-hover/img:scale-[1.005]"
         />
       </button>
       {alt && (
@@ -145,35 +188,56 @@ function ZoomableImage({ src, alt }) {
           {alt}
         </figcaption>
       )}
-      <dialog
-        ref={dialogRef}
-        onClick={(e) => e.target === e.currentTarget && close()}
-        className="m-auto max-h-none max-w-none bg-transparent p-0 backdrop:bg-bg/90 backdrop:backdrop-blur-sm"
-      >
-        <div className="flex h-[100dvh] w-[100vw] items-center justify-center p-4 md:p-10" onClick={close}>
-          <img
-            src={src}
-            alt={alt || ""}
-            className="max-h-full max-w-full cursor-zoom-out rounded-lg object-contain"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={close}
-          aria-label="Close"
-          className="fixed right-4 top-4 rounded-full border border-border bg-surface p-2 text-muted transition-colors hover:text-text"
-        >
-          <X size={18} />
-        </button>
-      </dialog>
-    </figure>
+      {createPortal(
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label={alt || "Image"}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, transition: { duration: 0.2 } }}
+              transition={{ duration: 0.25 }}
+              onClick={close}
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-bg/90 p-4 backdrop-blur-sm md:p-10"
+            >
+              <motion.img
+                src={src}
+                alt={alt || ""}
+                initial={{ opacity: 0, scale: 0.9, y: 12 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.18 } }}
+                transition={{ type: "spring", stiffness: 260, damping: 28 }}
+                className="max-h-full max-w-full cursor-zoom-out rounded-lg object-contain"
+              />
+              <motion.button
+                ref={closeRef}
+                type="button"
+                onClick={close}
+                aria-label="Close"
+                initial={{ opacity: 0, scale: 0.6 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.15 } }}
+                whileTap={{ scale: 0.9 }}
+                transition={{ type: "spring", stiffness: 400, damping: 26, delay: 0.05 }}
+                className="fixed right-4 top-4 rounded-full border border-border bg-surface p-2 text-muted transition-colors hover:text-text"
+              >
+                <X size={18} />
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+    </Reveal>
   );
 }
 
 function Heading({ as: Tag, children, className }) {
   const id = slugifyHeading(nodeText(children));
   return (
-    <Tag id={id} className={`group relative scroll-mt-28 ${className}`}>
+    <Reveal as={Tag} y={10} id={id} className={`group relative scroll-mt-28 ${className}`}>
       <a
         href={`#${id}`}
         aria-label="Link to this section"
@@ -182,7 +246,7 @@ function Heading({ as: Tag, children, className }) {
         <LinkIcon size={16} />
       </a>
       {children}
-    </Tag>
+    </Reveal>
   );
 }
 
@@ -252,9 +316,9 @@ const mdComponents = {
   ),
   em: ({ children }) => <em className="italic text-zinc-200">{children}</em>,
   table: ({ children }) => (
-    <div className="wide my-10 overflow-x-auto rounded-xl border border-border">
+    <Reveal className="wide my-10 overflow-x-auto rounded-xl border border-border">
       <table className="w-full border-collapse font-sans text-[0.925rem]">{children}</table>
-    </div>
+    </Reveal>
   ),
   thead: ({ children }) => <thead className="bg-surface/70">{children}</thead>,
   tbody: ({ children }) => <tbody>{children}</tbody>,
@@ -325,18 +389,22 @@ function TocSidebar({ headings, active }) {
         <p className="mb-3 font-sans text-sm font-medium text-text">On this page</p>
         <ul className="space-y-0.5 border-l border-border">
           {headings.map((h) => (
-            <li key={h.id}>
+            <li key={h.id} className="relative">
+              {active === h.id && (
+                <motion.span
+                  layoutId="toc-marker"
+                  aria-hidden="true"
+                  transition={{ type: "spring", stiffness: 380, damping: 34 }}
+                  className="absolute -left-px inset-y-0 w-0.5 rounded-full bg-accent"
+                />
+              )}
               <a
                 href={`#${h.id}`}
                 onClick={(e) => scrollToHeading(e, h.id)}
                 aria-current={active === h.id ? "location" : undefined}
-                className={`-ml-px block border-l py-1 font-sans text-[13px] leading-snug transition-colors ${
+                className={`block py-1 font-sans text-[13px] leading-snug transition-colors duration-300 ${
                   h.depth === 3 ? "pl-6" : "pl-3"
-                } ${
-                  active === h.id
-                    ? "border-accent text-text"
-                    : "border-transparent text-muted hover:text-text"
-                }`}
+                } ${active === h.id ? "text-text" : "text-muted hover:text-text"}`}
               >
                 {h.text}
               </a>
@@ -381,7 +449,7 @@ function SeriesNav({ current }) {
   const parts = s.slugs.map((slug) => posts.find((p) => p.slug === slug)).filter(Boolean);
   const index = parts.findIndex((p) => p.slug === current.slug);
   return (
-    <nav aria-label={`${s.title} series`} className="mb-10 rounded-xl border border-border bg-surface/40 p-5 font-sans">
+    <Reveal as="nav" aria-label={`${s.title} series`} className="mb-10 rounded-xl border border-border bg-surface/40 p-5 font-sans">
       <p className="text-sm text-muted">
         Part {index + 1} of {parts.length} in{" "}
         <span className="font-medium text-text">{s.title}</span>
@@ -400,7 +468,7 @@ function SeriesNav({ current }) {
           </li>
         ))}
       </ol>
-    </nav>
+    </Reveal>
   );
 }
 
@@ -410,7 +478,7 @@ function NeighborLink({ post, direction }) {
   return (
     <Link
       to={`/blog/${post.slug}`}
-      className={`group block rounded-xl border border-border p-5 transition-colors hover:border-accent/40 ${
+      className={`group block rounded-xl border border-border p-5 transition-[border-color,transform] duration-300 hover:-translate-y-0.5 hover:border-accent/40 ${
         isPrev ? "sm:text-left" : "sm:text-right"
       }`}
     >
@@ -421,11 +489,11 @@ function NeighborLink({ post, direction }) {
       >
         {isPrev ? (
           <>
-            <ArrowLeft size={12} /> Previous post
+            <ArrowLeft size={12} className="transition-transform duration-300 group-hover:-translate-x-1" /> Previous post
           </>
         ) : (
           <>
-            Next post <ArrowRight size={12} />
+            Next post <ArrowRight size={12} className="transition-transform duration-300 group-hover:translate-x-1" />
           </>
         )}
       </span>
@@ -469,10 +537,10 @@ function RelatedPosts({ current }) {
         </Link>
       </div>
       <ul className="divide-y divide-border/70 border-t border-border/70">
-        {related.map((p) => {
+        {related.map((p, i) => {
           const cover = coverImage(p);
           return (
-            <li key={p.slug} className="group relative flex items-start gap-5 py-5">
+            <Reveal as="li" delay={i * 0.08} key={p.slug} className="group relative flex items-start gap-5 py-5">
               <div className="min-w-0 flex-1">
                 <p className="mb-1.5 text-xs text-muted">
                   <span className="text-accent">{p.category}</span>
@@ -491,10 +559,10 @@ function RelatedPosts({ current }) {
                   alt=""
                   loading="lazy"
                   decoding="async"
-                  className="hidden aspect-[16/10] w-32 shrink-0 rounded-md border border-border object-cover sm:block"
+                  className="hidden aspect-[16/10] w-32 shrink-0 rounded-md border border-border object-cover transition-transform duration-500 group-hover:scale-[1.04] sm:block"
                 />
               )}
-            </li>
+            </Reveal>
           );
         })}
       </ul>
@@ -516,7 +584,7 @@ function CopyLinkButton() {
       }}
       className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted transition-colors hover:border-muted/50 hover:text-text active:scale-[0.98]"
     >
-      {copied ? <Check size={14} className="text-accent" /> : <LinkIcon size={14} />}
+      <SwapIcon on={copied} size={14} idle={LinkIcon} />
       {copied ? "Copied" : "Copy link"}
     </button>
   );
@@ -593,18 +661,14 @@ export default function BlogPost() {
         jsonLd={jsonLd}
       />
       <ScrollProgress />
+      <BackToTop showProgress />
       <div className="min-h-[100dvh] bg-bg">
         <Navbar />
         <main id="main" className="pb-28 pt-28 md:pt-36">
           {/* Header */}
-          <motion.header
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="article-grid"
-          >
-            <div>
-              <nav aria-label="Breadcrumb" className="mb-8 flex items-center gap-2 text-sm text-muted">
+          <header className="article-grid">
+            <motion.div variants={staggerParent(0.08)} initial="hidden" animate="show">
+              <motion.nav variants={fadeUpChild} aria-label="Breadcrumb" className="mb-8 flex items-center gap-2 text-sm text-muted">
                 <Link to="/blog" className="transition-colors hover:text-text">
                   Blog
                 </Link>
@@ -612,16 +676,16 @@ export default function BlogPost() {
                 <Link to={topicPath(post.category)} className="text-accent hover:underline underline-offset-4">
                   {post.category}
                 </Link>
-              </nav>
+              </motion.nav>
 
-              <h1 className="text-balance font-heading text-[2.1rem] font-bold leading-[1.12] tracking-[-0.02em] text-text md:text-[2.9rem]">
+              <motion.h1 variants={fadeUpChild} className="text-balance font-heading text-[2.1rem] font-bold leading-[1.12] tracking-[-0.02em] text-text md:text-[2.9rem]">
                 {post.title}
-              </h1>
-              <p className="mt-6 text-pretty font-serif text-[1.25rem] leading-[1.6] text-zinc-400 md:text-[1.375rem]">
+              </motion.h1>
+              <motion.p variants={fadeUpChild} className="mt-6 text-pretty font-serif text-[1.25rem] leading-[1.6] text-zinc-400 md:text-[1.375rem]">
                 {post.excerpt}
-              </p>
+              </motion.p>
 
-              <div className="mt-10 flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-y border-border py-5">
+              <motion.div variants={fadeUpChild} className="mt-10 flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-y border-border py-5">
                 <div className="flex items-center gap-3.5">
                   <img
                     src="/images/Profile2.1.webp"
@@ -640,9 +704,9 @@ export default function BlogPost() {
                   </div>
                 </div>
                 <CopyLinkButton />
-              </div>
-            </div>
-          </motion.header>
+              </motion.div>
+            </motion.div>
+          </header>
 
           {/* Body */}
           <div className="relative mt-12">
@@ -656,7 +720,12 @@ export default function BlogPost() {
             </div>
 
             {status === "ready" && (
-              <article className="article-grid article-body">
+              <motion.article
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4, ease: EASE_OUT }}
+                className="article-grid article-body"
+              >
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm, remarkMath]}
                   rehypePlugins={[rehypeKatex]}
@@ -664,7 +733,7 @@ export default function BlogPost() {
                 >
                   {content}
                 </ReactMarkdown>
-              </article>
+              </motion.article>
             )}
             {status === "loading" && (
               <div className="article-grid">
@@ -692,7 +761,7 @@ export default function BlogPost() {
           <footer className="article-grid mt-16">
             <div>
               {post.tags.length > 0 && (
-                <ul className="flex flex-wrap gap-2" aria-label="Tags">
+                <Reveal as="ul" className="flex flex-wrap gap-2" aria-label="Tags">
                   {post.tags.map((tag) => (
                     <li key={tag}>
                       <Link
@@ -703,10 +772,10 @@ export default function BlogPost() {
                       </Link>
                     </li>
                   ))}
-                </ul>
+                </Reveal>
               )}
 
-              <div className="mt-12 flex items-start gap-5 rounded-xl border border-border bg-surface/40 p-6">
+              <Reveal className="mt-12 flex items-start gap-5 rounded-xl border border-border bg-surface/40 p-6">
                 <img
                   src="/images/Profile2.1.webp"
                   alt=""
@@ -723,12 +792,12 @@ export default function BlogPost() {
                     and systems. I write about what I learn shipping them.
                   </p>
                 </div>
-              </div>
+              </Reveal>
 
-              <nav aria-label="More posts" className="mt-8 grid gap-4 sm:grid-cols-2">
+              <Reveal as="nav" aria-label="More posts" className="mt-8 grid gap-4 sm:grid-cols-2">
                 <NeighborLink post={older} direction="prev" />
                 <NeighborLink post={newer} direction="next" />
-              </nav>
+              </Reveal>
 
               <RelatedPosts current={post} />
             </div>
