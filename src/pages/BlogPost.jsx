@@ -1,35 +1,33 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
-  Calendar,
-  Clock,
   Copy,
   Check,
   List,
+  Link as LinkIcon,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
-import { posts } from "../data/posts";
+import { posts, topicPath, seriesFor } from "../data/posts";
 import { site } from "../data/siteConfig";
 import {
-  readingTime,
   formatDate,
   slugifyHeading,
   extractHeadings,
+  coverImage,
 } from "../lib/blogUtils";
 import Navbar from "../components/Navbar";
 import ScrollProgress from "../components/ScrollProgress";
-import CursorGlow from "../components/CursorGlow";
-import FloatingOrbs from "../components/FloatingOrbs";
 import Seo from "../components/Seo";
 import NotFound from "./NotFound";
 import { trackEvent } from "../lib/analytics";
+import { usePostContent } from "../lib/postContent";
 
 // Syntax highlighting is heavy; load it only for posts that contain code.
 const CodeBlock = lazy(() => import("../components/CodeBlock"));
@@ -75,7 +73,7 @@ const mdComponents = {
   h2: ({ children }) => (
     <h2
       id={slugifyHeading(nodeText(children))}
-      className="font-heading font-semibold text-2xl text-text mt-9 mb-3 pb-2 border-b border-border scroll-mt-24"
+      className="font-heading font-semibold text-2xl md:text-[1.7rem] tracking-tight text-text mt-14 mb-4 scroll-mt-24"
     >
       {children}
     </h2>
@@ -83,7 +81,7 @@ const mdComponents = {
   h3: ({ children }) => (
     <h3
       id={slugifyHeading(nodeText(children))}
-      className="font-heading font-semibold text-xl text-text mt-7 mb-2 scroll-mt-24"
+      className="font-heading font-semibold text-xl text-text mt-10 mb-3 scroll-mt-24"
     >
       {children}
     </h3>
@@ -94,10 +92,10 @@ const mdComponents = {
       node.children[0].type === "element" &&
       node.children[0].tagName === "img";
     if (onlyImage) return <>{children}</>;
-    return <p className="text-muted leading-7 mb-5">{children}</p>;
+    return <p className="text-[1.0625rem] text-zinc-300 leading-[1.8] mb-6">{children}</p>;
   },
   img: ({ src, alt }) => (
-    <figure className="my-8">
+    <figure className="my-10">
       <img
         src={src}
         alt={alt || ""}
@@ -106,35 +104,40 @@ const mdComponents = {
         className="w-full rounded-xl border border-border object-cover"
       />
       {alt && (
-        <figcaption className="text-center text-xs text-muted mt-2 font-mono italic">
+        <figcaption className="text-center text-sm text-muted mt-3">
           {alt}
         </figcaption>
       )}
     </figure>
   ),
-  a: ({ href, children }) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-accent hover:underline underline-offset-2"
-    >
-      {children}
-    </a>
-  ),
+  a: ({ href = "", children }) => {
+    const cls = "text-accent underline decoration-accent/30 underline-offset-[3px] hover:decoration-accent transition-colors";
+    // Links to other pages on this site stay in the same tab.
+    if (href.startsWith("/")) {
+      return <Link to={href} className={cls}>{children}</Link>;
+    }
+    if (href.startsWith("#")) {
+      return <a href={href} className={cls}>{children}</a>;
+    }
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>
+        {children}
+      </a>
+    );
+  },
   ul: ({ children }) => (
-    <ul className="mb-5 space-y-2 pl-5 marker:text-accent [list-style-type:'▸_']">
+    <ul className="mb-6 space-y-2 pl-5 marker:text-accent [list-style-type:'▸_']">
       {children}
     </ul>
   ),
   ol: ({ children }) => (
-    <ol className="list-decimal list-inside mb-5 space-y-2 text-muted">{children}</ol>
+    <ol className="list-decimal list-inside mb-6 space-y-2 text-zinc-300">{children}</ol>
   ),
   li: ({ children }) => (
-    <li className="text-muted leading-7 pl-1">{children}</li>
+    <li className="text-[1.0625rem] text-zinc-300 leading-[1.8] pl-1">{children}</li>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="border-l-2 border-accent pl-4 my-6 italic text-muted">
+    <blockquote className="border-l-2 border-accent pl-5 my-8 text-zinc-300 [&>p]:text-zinc-200">
       {children}
     </blockquote>
   ),
@@ -160,7 +163,7 @@ const mdComponents = {
     </th>
   ),
   td: ({ children }) => (
-    <td className="text-muted px-4 py-2.5 align-top">{children}</td>
+    <td className="text-zinc-300 px-4 py-2.5 align-top">{children}</td>
   ),
   code({ inline, className, children }) {
     const match = /language-(\w+)/.exec(className || "");
@@ -224,7 +227,7 @@ function TocSidebar({ headings, active }) {
   return (
     <nav aria-label="Table of contents" className="hidden xl:block">
       <div className="sticky top-28">
-        <p className="text-xs font-mono text-muted tracking-wider uppercase mb-3">
+        <p className="text-sm font-medium text-text mb-3">
           On this page
         </p>
         <ul className="space-y-1.5 border-l border-border">
@@ -277,65 +280,164 @@ function TocMobile({ headings }) {
   );
 }
 
-/* ── Prev / next + related ── */
+/* ── Series, prev / next, related ── */
+function SeriesNav({ current }) {
+  const s = seriesFor(current.slug);
+  if (!s) return null;
+  const parts = s.slugs.map((slug) => posts.find((p) => p.slug === slug)).filter(Boolean);
+  const index = parts.findIndex((p) => p.slug === current.slug);
+  return (
+    <nav aria-label={`${s.title} series`} className="mb-10 rounded-xl border border-border bg-surface/50 p-5">
+      <p className="text-sm text-muted">
+        Part {index + 1} of {parts.length} in{" "}
+        <span className="font-medium text-text">{s.title}</span>
+      </p>
+      <ol className="mt-3 space-y-1.5">
+        {parts.map((p, i) => (
+          <li key={p.slug} className="flex gap-3 text-sm">
+            <span className="w-4 shrink-0 font-mono text-muted">{i + 1}</span>
+            {p.slug === current.slug ? (
+              <span aria-current="page" className="font-medium text-accent">{p.title}</span>
+            ) : (
+              <Link to={`/blog/${p.slug}`} className="text-zinc-300 transition-colors hover:text-accent">
+                {p.title}
+              </Link>
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
 function NeighborLink({ post, direction }) {
-  if (!post) return <div className="flex-1" />;
+  if (!post) return <div className="hidden sm:block" />;
   const isPrev = direction === "prev";
   return (
     <Link
       to={`/blog/${post.slug}`}
-      className={`flex-1 group bg-surface border border-border rounded-xl p-4 hover:border-accent/30 transition-colors ${
-        isPrev ? "text-left" : "text-right"
-      }`}
+      className={`group block py-2 ${isPrev ? "sm:text-left" : "sm:text-right"}`}
     >
-      <p
-        className={`flex items-center gap-1.5 text-xs text-muted font-mono mb-1.5 ${
-          isPrev ? "" : "justify-end"
+      <span
+        className={`mb-1.5 flex items-center gap-1.5 text-xs text-muted ${
+          isPrev ? "" : "sm:justify-end"
         }`}
       >
         {isPrev ? (
           <>
-            <ArrowLeft size={12} /> Older
+            <ArrowLeft size={12} /> Previous post
           </>
         ) : (
           <>
-            Newer <ArrowRight size={12} />
+            Next post <ArrowRight size={12} />
           </>
         )}
-      </p>
-      <p className="text-sm text-text font-medium leading-snug group-hover:text-accent transition-colors line-clamp-2">
+      </span>
+      <span className="font-heading font-semibold leading-snug text-text transition-colors group-hover:text-accent">
         {post.title}
-      </p>
+      </span>
     </Link>
   );
 }
 
+// Same topic counts most, shared tags break ties, newer wins after that.
+function relatedPosts(current, count = 3) {
+  return posts
+    .filter((p) => p.slug !== current.slug)
+    .map((p) => ({
+      post: p,
+      score:
+        (p.category === current.category ? 3 : 0) +
+        p.tags.filter((t) => current.tags.includes(t)).length,
+    }))
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score || b.post.date.localeCompare(a.post.date))
+    .slice(0, count)
+    .map((r) => r.post);
+}
+
 function RelatedPosts({ current }) {
-  const related = posts
-    .filter((p) => p.slug !== current.slug && p.category === current.category)
-    .slice(0, 3);
+  const related = relatedPosts(current);
   if (related.length === 0) return null;
   return (
-    <div className="mt-12">
-      <p className="text-xs font-mono text-muted tracking-wider uppercase mb-4">
-        More in {current.category}
-      </p>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {related.map((p) => (
-          <Link
-            key={p.slug}
-            to={`/blog/${p.slug}`}
-            className="group bg-surface border border-border rounded-xl p-4 hover:border-accent/30 transition-colors"
-          >
-            <p className="text-sm text-text font-medium leading-snug mb-2 group-hover:text-accent transition-colors line-clamp-2">
-              {p.title}
-            </p>
-            <p className="text-xs text-muted font-mono">
-              {formatDate(p.date, { short: true })} · {readingTime(p.content)} min
-            </p>
-          </Link>
-        ))}
+    <section aria-labelledby="related-heading" className="mt-16">
+      <div className="mb-2 flex items-baseline justify-between gap-4">
+        <h2 id="related-heading" className="font-heading text-xl font-semibold text-text">
+          Keep reading
+        </h2>
+        <Link
+          to={topicPath(current.category)}
+          className="text-sm text-accent hover:underline underline-offset-4"
+        >
+          All {current.category} posts
+        </Link>
       </div>
+      <ul className="divide-y divide-border/70">
+        {related.map((p) => {
+          const cover = coverImage(p);
+          return (
+            <li key={p.slug} className="group relative flex items-start gap-5 py-5">
+              <div className="min-w-0 flex-1">
+                <p className="mb-1.5 text-xs text-muted">
+                  <span className="text-accent">{p.category}</span>
+                  <span className="mx-2">{formatDate(p.date, { short: true })}</span>
+                  {p.readingTime} min read
+                </p>
+                <h3 className="font-heading font-semibold leading-snug text-text transition-colors group-hover:text-accent">
+                  <Link to={`/blog/${p.slug}`} className="after:absolute after:inset-0">
+                    {p.title}
+                  </Link>
+                </h3>
+              </div>
+              {cover && (
+                <img
+                  src={cover.src}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="hidden aspect-[16/10] w-32 shrink-0 rounded-md border border-border object-cover sm:block"
+                />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function CopyLinkButton() {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard?.writeText(window.location.href.split("#")[0]).then(() => {
+          setCopied(true);
+          trackEvent("post_link_copy", { page: window.location.pathname });
+          setTimeout(() => setCopied(false), 1600);
+        });
+      }}
+      className="inline-flex items-center gap-1.5 text-muted transition-colors hover:text-text"
+    >
+      {copied ? <Check size={13} className="text-accent" /> : <LinkIcon size={13} />}
+      {copied ? "Copied" : "Copy link"}
+    </button>
+  );
+}
+
+// Placeholder shaped like the opening paragraphs while the body chunk loads.
+function ArticleSkeleton() {
+  const lines = [100, 96, 98, 72, 0, 100, 94, 97, 88, 60];
+  return (
+    <div aria-hidden="true" className="animate-pulse space-y-4 motion-reduce:animate-none">
+      {lines.map((w, i) =>
+        w === 0 ? (
+          <div key={i} className="h-4" />
+        ) : (
+          <div key={i} className="h-4 rounded bg-surface" style={{ width: `${w}%` }} />
+        )
+      )}
     </div>
   );
 }
@@ -345,19 +447,28 @@ export default function BlogPost() {
   const { slug } = useParams();
   const post = posts.find((p) => p.slug === slug);
 
-  const headings = post ? extractHeadings(post.content) : [];
+  const { status, content, retry } = usePostContent(slug);
+  const headings = useMemo(() => (content ? extractHeadings(content) : []), [content]);
   const active = useActiveHeading(headings);
 
   useEffect(() => {
-    window.scrollTo(0, 0);
+    if (!window.location.hash) window.scrollTo(0, 0);
   }, [slug]);
+
+  // Links like /blog/post#section can only land once the body has rendered.
+  useEffect(() => {
+    if (status !== "ready" || !window.location.hash) return;
+    const el = document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
+    el?.scrollIntoView();
+  }, [status, slug]);
 
   if (!post) return <NotFound />;
 
   const index = posts.findIndex((p) => p.slug === slug);
   const newer = posts[index - 1] ?? null;
   const older = posts[index + 1] ?? null;
-  const showToc = headings.length >= 3;
+  // Known before the body loads, so the layout doesn't shift when it arrives.
+  const showToc = post.headingCount >= 3;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -386,66 +497,47 @@ export default function BlogPost() {
         jsonLd={jsonLd}
       />
       <ScrollProgress />
-      <CursorGlow />
-      <FloatingOrbs />
-      <div className="min-h-screen bg-bg">
+      <div className="min-h-[100dvh] bg-bg">
         <Navbar />
         <main
           id="main"
-          className={`mx-auto px-5 md:px-8 pt-28 pb-24 ${
+          className={`mx-auto px-4 sm:px-5 md:px-8 pt-28 pb-24 ${
             showToc ? "max-w-3xl xl:max-w-5xl" : "max-w-3xl"
           }`}
         >
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
           >
-            {/* Back */}
-            <Link
-              to="/blog"
-              className="inline-flex items-center gap-2 text-muted text-sm hover:text-text transition-colors mb-10"
-            >
-              <ArrowLeft size={15} />
-              All posts
-            </Link>
-
-            {/* Tags */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              {post.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-xs font-mono px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-
-            {/* Title */}
-            <h1 className="font-heading font-bold text-3xl md:text-4xl text-text mb-4 leading-tight">
-              {post.title}
-            </h1>
-
-            {/* Meta */}
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted mb-10 pb-8 border-b border-border">
-              {post.category && (
-                <Link
-                  to={`/blog?category=${encodeURIComponent(post.category)}`}
-                  className="font-mono px-2.5 py-1 rounded-full bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20 transition-colors"
-                >
+            {/* Header */}
+            <header className="mb-10 border-b border-border pb-8 xl:max-w-3xl">
+              <nav aria-label="Breadcrumb" className="mb-8 flex items-center gap-2 text-sm text-muted">
+                <Link to="/blog" className="transition-colors hover:text-text">
+                  Blog
+                </Link>
+                <span aria-hidden="true">/</span>
+                <Link to={topicPath(post.category)} className="text-accent hover:underline underline-offset-4">
                   {post.category}
                 </Link>
-              )}
-              <span className="flex items-center gap-1.5">
-                <Calendar size={12} />
-                {formatDate(post.date)}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock size={12} />
-                {readingTime(post.content)} min read
-              </span>
-            </div>
+              </nav>
+
+              <h1 className="font-heading text-3xl font-bold leading-[1.15] tracking-tight text-text md:text-[2.6rem]">
+                {post.title}
+              </h1>
+              <p className="mt-5 max-w-[65ch] text-lg leading-relaxed text-muted">
+                {post.excerpt}
+              </p>
+
+              <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                <span className="font-medium text-text">{site.author}</span>
+                <time dateTime={post.date} className="text-muted">
+                  {formatDate(post.date)}
+                </time>
+                <span className="text-muted">{post.readingTime} min read</span>
+                <CopyLinkButton />
+              </div>
+            </header>
 
             <div
               className={
@@ -455,40 +547,82 @@ export default function BlogPost() {
               }
             >
               <div className="min-w-0">
-                {showToc && <TocMobile headings={headings} />}
+                <SeriesNav current={post} />
+                {showToc && headings.length > 0 && <TocMobile headings={headings} />}
 
                 {/* Content */}
-                <article>
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkMath]}
-                    rehypePlugins={[rehypeKatex]}
-                    components={mdComponents}
-                  >
-                    {post.content}
-                  </ReactMarkdown>
-                </article>
+                {status === "ready" && (
+                  <article>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
+                      components={mdComponents}
+                    >
+                      {content}
+                    </ReactMarkdown>
+                  </article>
+                )}
+                {status === "loading" && <ArticleSkeleton />}
+                {status === "error" && (
+                  <div role="alert" className="rounded-xl border border-border bg-surface/50 px-6 py-10 text-center">
+                    <p className="font-heading text-lg text-text">This post didn't load.</p>
+                    <p className="mt-2 text-sm text-muted">
+                      Check your connection and try again.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={retry}
+                      className="mt-6 rounded-lg border border-border px-4 py-2 text-sm text-text transition-colors hover:border-accent/50 active:scale-[0.98]"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                )}
+
+                {/* Tags */}
+                {post.tags.length > 0 && (
+                  <ul className="mt-12 flex flex-wrap gap-2" aria-label="Tags">
+                    {post.tags.map((tag) => (
+                      <li key={tag}>
+                        <Link
+                          to={`/blog?tag=${encodeURIComponent(tag)}`}
+                          className="inline-block rounded-md border border-border px-2.5 py-1 font-mono text-xs text-muted transition-colors hover:border-accent/50 hover:text-text"
+                        >
+                          #{tag}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {/* Author */}
+                <div className="mt-12 flex items-center gap-4 border-y border-border py-6">
+                  <img
+                    src="/images/Profile2.1.webp"
+                    loading="lazy"
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-full border border-border bg-surface object-cover object-top"
+                  />
+                  <p className="text-sm leading-relaxed text-muted">
+                    Written by{" "}
+                    <Link to="/" className="font-medium text-text hover:text-accent">
+                      {site.author}
+                    </Link>
+                    , a software developer working on game engines, graphics
+                    programming, and systems.
+                  </p>
+                </div>
+
+                {/* Previous / next */}
+                <nav aria-label="More posts" className="mt-8 grid gap-6 sm:grid-cols-2">
+                  <NeighborLink post={older} direction="prev" />
+                  <NeighborLink post={newer} direction="next" />
+                </nav>
+
+                <RelatedPosts current={post} />
               </div>
 
               {showToc && <TocSidebar headings={headings} active={active} />}
-            </div>
-
-            {/* Prev / next */}
-            <div className="flex gap-3 mt-16">
-              <NeighborLink post={older} direction="prev" />
-              <NeighborLink post={newer} direction="next" />
-            </div>
-
-            <RelatedPosts current={post} />
-
-            {/* Footer */}
-            <div className="mt-16 pt-8 border-t border-border">
-              <Link
-                to="/blog"
-                className="inline-flex items-center gap-2 text-muted text-sm hover:text-text transition-colors"
-              >
-                <ArrowLeft size={15} />
-                Back to all posts
-              </Link>
             </div>
           </motion.div>
         </main>

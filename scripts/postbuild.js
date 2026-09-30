@@ -11,10 +11,13 @@
 //   4. Emits dist/getprojects.json, the /getprojects endpoint
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { posts } from "../src/data/posts.js";
+import { topics } from "../src/data/blogTaxonomy.js";
+import { loadPosts } from "./lib/posts.mjs";
 import { projects } from "../src/data/projects.js";
 import { site } from "../src/data/siteConfig.js";
 import repositories from "../src/data/repositories.json" with { type: "json" };
+
+const posts = loadPosts();
 
 const DIST = new URL("../dist", import.meta.url).pathname;
 const template = readFileSync(join(DIST, "index.html"), "utf8");
@@ -101,6 +104,24 @@ writePage("/blog", {
   },
 });
 
+// ── Blog topic pages ──
+for (const topic of topics) {
+  const url = `${site.url}/blog/topic/${topic.slug}`;
+  writePage(`/blog/topic/${topic.slug}`, {
+    title: `${topic.name} posts — ${site.author}`,
+    description: `${topic.blurb} Posts by ${site.author}.`,
+    url,
+    image: `${site.url}/og/home.png`,
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: `${topic.name} posts`,
+      url,
+      isPartOf: { "@type": "Blog", url: `${site.url}/blog` },
+    },
+  });
+}
+
 // ── Blog posts ──
 for (const post of posts) {
   const url = `${site.url}/blog/${post.slug}`;
@@ -153,6 +174,11 @@ for (const project of projects) {
 const urls = [
   { loc: `${site.url}/`, lastmod: today, priority: "1.0" },
   { loc: `${site.url}/blog`, lastmod: posts[0]?.date ?? today, priority: "0.8" },
+  ...topics.map((t) => ({
+    loc: `${site.url}/blog/topic/${t.slug}`,
+    lastmod: posts.find((p) => p.category === t.name)?.date ?? today,
+    priority: "0.6",
+  })),
   ...posts.map((p) => ({
     loc: `${site.url}/blog/${p.slug}`,
     lastmod: p.date,

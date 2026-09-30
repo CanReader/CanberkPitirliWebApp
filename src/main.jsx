@@ -21,6 +21,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Routes>
             <Route path="/" element={<App />} />
             <Route path="/blog" element={<BlogList />} />
+            <Route path="/blog/topic/:topic" element={<BlogList />} />
             <Route path="/blog/:slug" element={<BlogPost />} />
             <Route path="/projects/:slug" element={<ProjectDetail />} />
             <Route path="*" element={<NotFound />} />

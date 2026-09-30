@@ -7,9 +7,11 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from "node
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
-import { posts } from "../src/data/posts.js";
+import { loadPosts } from "./lib/posts.mjs";
 import { projects } from "../src/data/projects.js";
 import { site } from "../src/data/siteConfig.js";
+
+const posts = loadPosts();
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const OUT = join(ROOT, "dist/og");
@@ -133,7 +135,6 @@ function render(name, svg) {
   rmSync(tmp, { force: true });
 }
 
-const readingTime = (c) => Math.max(1, Math.ceil(c.split(/\s+/).length / 200));
 const heroOf = (content) => {
   const m = content.match(/!\[[^\]]*\]\((\/images\/[^)\s]+)\)/);
   return m ? join(ROOT, "public", decodeURIComponent(m[1])) : null;
@@ -172,7 +173,7 @@ for (const post of posts) {
     day: "numeric",
   });
   const inner = `
-    ${kicker([post.category, `${readingTime(post.content)} min read`])}
+    ${kicker([post.category, `${post.readingTime} min read`])}
     <rect x="78" y="206" width="64" height="4" rx="2" fill="#34D399"/>
     ${titleBlock(lines, size, startY)}
     <text x="78" y="500" font-family="JetBrains Mono" font-size="21" fill="#9ca3af">${esc(date)}</text>
