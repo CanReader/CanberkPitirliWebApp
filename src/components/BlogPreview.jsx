@@ -4,10 +4,6 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Clock, Calendar } from "lucide-react";
 import { posts } from "../data/posts";
 
-function readingTime(content) {
-  return Math.max(1, Math.ceil(content.split(/\s+/).length / 200));
-}
-
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
@@ -102,7 +98,7 @@ function PostCard({ post, index, inView }) {
               </span>
               <span className="flex items-center gap-1">
                 <Clock size={10} />
-                {readingTime(post.content)} min
+                {post.readingTime} min
               </span>
               <span className="ml-auto flex items-center gap-0.5 text-accent font-mono font-medium text-[11px] opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-[border-color,transform,box-shadow] duration-300">
                 Read <ArrowRight size={11} />

@@ -1,262 +1,647 @@
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Calendar, Clock } from "lucide-react";
-import { posts, categories } from "../data/posts";
+import {
+  Link,
+  Navigate,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import { ArrowLeft, Rss, Search, X } from "lucide-react";
+import { posts, topics, topicPath, series } from "../data/posts";
 import Navbar from "../components/Navbar";
 import ScrollProgress from "../components/ScrollProgress";
-import CursorGlow from "../components/CursorGlow";
-import FloatingOrbs from "../components/FloatingOrbs";
 import Seo from "../components/Seo";
-import { readingTime, formatDate } from "../lib/blogUtils";
+import NotFound from "./NotFound";
+import usePrefersReducedMotion from "../lib/usePrefersReducedMotion";
+import {
+  formatDate,
+  coverImage,
+  scorePost,
+  searchSnippet,
+} from "../lib/blogUtils";
+import { prefetchPost, useSearchIndex } from "../lib/postContent";
 
-// Count posts per category (for the tab badges)
-function buildCounts() {
-  const counts = { All: posts.length };
-  for (const post of posts) {
-    counts[post.category] = (counts[post.category] ?? 0) + 1;
+const EASE = [0.16, 1, 0.3, 1];
+
+// Rows shown before "Show older posts" when a list gets long.
+const PAGE_SIZE = 12;
+
+const topicCounts = posts.reduce((acc, p) => {
+  acc[p.category] = (acc[p.category] ?? 0) + 1;
+  return acc;
+}, {});
+
+// Tags that appear on at least two posts, most used first.
+const popularTags = Object.entries(
+  posts.reduce((acc, p) => {
+    for (const t of p.tags) acc[t] = (acc[t] ?? 0) + 1;
+    return acc;
+  }, {})
+)
+  .filter(([, n]) => n >= 2)
+  .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  .slice(0, 16)
+  .map(([t]) => t);
+
+function groupByYear(list) {
+  const groups = [];
+  for (const post of list) {
+    const year = post.date.slice(0, 4);
+    const last = groups[groups.length - 1];
+    if (last && last.year === year) last.posts.push(post);
+    else groups.push({ year, posts: [post] });
   }
-  return counts;
+  return groups;
 }
 
-// Only show tabs that have at least 1 post, or "All"
-function visibleCategories(counts) {
-  return categories.filter((cat) => cat === "All" || (counts[cat] ?? 0) > 0);
-}
-
-// ── Featured hero card ──────────────────────────────────────────────────────
-function FeaturedCard({ post }) {
-  const mins = readingTime(post.content);
-  return (
-    <motion.article
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="mb-8"
-    >
-      <Link to={`/blog/${post.slug}`} className="block group">
-        <div
-          className={[
-            "relative bg-surface border border-border rounded-2xl p-7 md:p-8",
-            "border-l-2 border-l-accent",
-            "hover:border-accent/40 hover:shadow-[0_0_24px_0_rgba(52,211,153,0.08)]",
-            "transition-all duration-300 hover:-translate-y-0.5",
-          ].join(" ")}
-        >
-          {/* FEATURED badge */}
-          <span className="inline-flex items-center font-mono text-[10px] font-semibold tracking-widest uppercase px-2.5 py-1 rounded-full bg-accent/15 text-accent border border-accent/25 mb-4">
-            Featured
-          </span>
-
-          {/* Category + meta row */}
-          <div className="flex flex-wrap items-center gap-3 mb-3">
-            <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-accent/10 text-accent border border-accent/20">
-              {post.category}
-            </span>
-            <span className="flex items-center gap-1.5 text-xs text-muted">
-              <Calendar size={11} />
-              {formatDate(post.date)}
-            </span>
-            <span className="flex items-center gap-1.5 text-xs text-muted">
-              <Clock size={11} />
-              {mins} min read
-            </span>
-          </div>
-
-          <h2 className="font-heading font-bold text-2xl md:text-3xl text-text mb-3 leading-snug group-hover:text-accent transition-colors duration-200">
-            {post.title}
-          </h2>
-          <p className="text-muted text-sm leading-relaxed line-clamp-4 mb-5">
-            {post.excerpt}
-          </p>
-
-          <span className="text-accent text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            Read →
-          </span>
-        </div>
-      </Link>
-    </motion.article>
+// Wraps every search term inside `text` in <mark>.
+function Highlight({ text, terms }) {
+  if (!terms.length) return text;
+  const escaped = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const parts = text.split(new RegExp(`(${escaped.join("|")})`, "gi"));
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <mark key={i} className="rounded-sm bg-accent/20 px-0.5 text-text">
+        {part}
+      </mark>
+    ) : (
+      part
+    )
   );
 }
 
-// ── Regular compact card ────────────────────────────────────────────────────
-function PostCard({ post, index }) {
-  const mins = readingTime(post.content);
+// ── Small pieces ────────────────────────────────────────────────────────────
+
+// Title link that stretches over its whole row, and starts fetching the post
+// body as soon as the reader points at it.
+function PostLink({ post, children }) {
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.07 }}
+    <Link
+      to={`/blog/${post.slug}`}
+      onMouseEnter={() => prefetchPost(post.slug)}
+      onFocus={() => prefetchPost(post.slug)}
+      onTouchStart={() => prefetchPost(post.slug)}
+      className="after:absolute after:inset-0"
     >
-      <Link to={`/blog/${post.slug}`} className="block group h-full">
-        <div
-          className={[
-            "relative flex flex-col h-full bg-surface border border-border rounded-2xl p-6",
-            "hover:border-accent/30 transition-all duration-300 hover:-translate-y-0.5",
-            "overflow-hidden",
-          ].join(" ")}
-        >
-          {/* Bottom accent line on hover */}
-          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left rounded-b-2xl" />
+      {children}
+    </Link>
+  );
+}
 
-          {/* Category chip */}
-          <span className="inline-flex self-start text-xs font-mono px-2.5 py-1 rounded-full bg-accent/10 text-accent border border-accent/20 mb-3">
-            {post.category}
-          </span>
-
-          <h2 className="font-heading font-semibold text-lg text-text mb-2 leading-snug group-hover:text-accent transition-colors duration-200">
-            {post.title}
-          </h2>
-          <p className="text-muted text-sm leading-relaxed line-clamp-2 mb-4 flex-1">
-            {post.excerpt}
-          </p>
-
-          <div className="flex items-center gap-4 text-xs text-muted mt-auto">
-            <span className="flex items-center gap-1.5">
-              <Calendar size={11} />
-              {formatDate(post.date)}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Clock size={11} />
-              {mins} min read
-            </span>
-            <span className="ml-auto text-accent opacity-0 group-hover:opacity-100 transition-opacity font-medium">
-              Read →
-            </span>
-          </div>
-        </div>
+function Meta({ post, className = "" }) {
+  return (
+    <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-xs ${className}`}>
+      <Link
+        to={topicPath(post.category)}
+        className="relative z-10 font-medium text-accent hover:underline underline-offset-4"
+      >
+        {post.category}
       </Link>
-    </motion.article>
+      <time dateTime={post.date} className="text-muted">
+        {formatDate(post.date, { short: true })}
+      </time>
+      <span className="text-muted">{post.readingTime} min read</span>
+    </div>
+  );
+}
+
+function Cover({ post, className, sizes, eager = false }) {
+  const cover = coverImage(post);
+  if (!cover) return null;
+  return (
+    <div
+      className={`overflow-hidden rounded-lg border border-border bg-surface ${className}`}
+    >
+      <img
+        src={cover.src}
+        alt=""
+        sizes={sizes}
+        loading={eager ? "eager" : "lazy"}
+        decoding="async"
+        className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+      />
+    </div>
+  );
+}
+
+// ── Lead: the featured story plus the latest few ────────────────────────────
+
+function Lead({ lead, latest }) {
+  return (
+    <section
+      aria-label="Featured and latest posts"
+      className="grid gap-12 border-b border-border pb-14 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-14"
+    >
+      <article className="group relative">
+        <Cover post={lead} eager className="mb-6 aspect-[16/9]" />
+        <Meta post={lead} className="mb-3" />
+        <h2 className="font-heading text-2xl font-bold leading-tight tracking-tight text-text transition-colors group-hover:text-accent md:text-[2.1rem]">
+          <PostLink post={lead}>
+            {lead.title}
+          </PostLink>
+        </h2>
+        <p className="mt-4 max-w-[62ch] leading-relaxed text-muted line-clamp-3">
+          {lead.excerpt}
+        </p>
+      </article>
+
+      <div>
+        <h2 className="border-b border-border pb-3 text-sm font-medium text-text">
+          Latest
+        </h2>
+        <ol className="divide-y divide-border/70">
+          {latest.map((post) => (
+            <li key={post.slug} className="group relative py-5">
+              <Meta post={post} className="mb-2" />
+              <h3 className="font-heading text-lg font-semibold leading-snug text-text transition-colors group-hover:text-accent">
+                <PostLink post={post}>
+                  {post.title}
+                </PostLink>
+              </h3>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
+// ── Archive row ─────────────────────────────────────────────────────────────
+
+function PostRow({ post, query, body, activeTag, onTag }) {
+  const hasCover = Boolean(coverImage(post));
+  const snippet = query ? searchSnippet(post, query, body) : null;
+  const terms = query ? query.toLowerCase().split(/\s+/).filter(Boolean) : [];
+  return (
+    <article
+      className={`group relative grid gap-x-8 py-7 ${
+        hasCover ? "sm:grid-cols-[minmax(0,1fr)_200px]" : ""
+      }`}
+    >
+      <div className="min-w-0">
+        <Meta post={post} className="mb-2.5" />
+        <h4 className="font-heading text-lg font-semibold leading-snug text-text transition-colors group-hover:text-accent sm:text-xl">
+          <PostLink post={post}>
+            <Highlight text={post.title} terms={terms} />
+          </PostLink>
+        </h4>
+        {snippet ? (
+          <p className="mt-2 max-w-[68ch] text-[0.95rem] leading-relaxed text-muted">
+            {snippet.before && "..."}
+            <Highlight text={snippet.text} terms={snippet.terms} />
+            {snippet.after && "..."}
+          </p>
+        ) : (
+          <p className="mt-2 max-w-[68ch] text-[0.95rem] leading-relaxed text-muted line-clamp-2">
+            <Highlight text={post.excerpt} terms={terms} />
+          </p>
+        )}
+        {post.tags.length > 0 && (
+          <ul className="mt-3 hidden flex-wrap gap-x-3 gap-y-1 sm:flex">
+            {post.tags.map((t) => (
+              <li key={t}>
+                <button
+                  type="button"
+                  onClick={() => onTag(t)}
+                  className={`relative z-10 font-mono text-xs transition-colors hover:text-text ${
+                    t === activeTag ? "text-accent" : "text-muted/70"
+                  }`}
+                >
+                  #{t}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {/* Thumbnails are text-heavy diagrams; too small to read on phones. */}
+      {hasCover && (
+        <Cover
+          post={post}
+          sizes="200px"
+          className="hidden aspect-[16/10] self-start sm:block"
+        />
+      )}
+    </article>
+  );
+}
+
+// ── Sidebar ─────────────────────────────────────────────────────────────────
+
+function TopicLink({ to, label, count, active }) {
+  return (
+    <Link
+      to={to}
+      aria-current={active ? "page" : undefined}
+      className={`relative flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors ${
+        active
+          ? "bg-surface font-medium text-text before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-accent"
+          : "text-muted hover:bg-surface/60 hover:text-text"
+      }`}
+    >
+      <span>{label}</span>
+      <span className="font-mono text-xs text-muted">{count}</span>
+    </Link>
+  );
+}
+
+function Sidebar({ topic, tag, onTag }) {
+  return (
+    <aside className="hidden lg:block">
+      <div className="sticky top-24 space-y-10">
+        <nav aria-label="Topics">
+          <h2 className="mb-2 px-3 text-sm font-medium text-text">Topics</h2>
+          <ul className="space-y-0.5">
+            <li>
+              <TopicLink to="/blog" label="All posts" count={posts.length} active={!topic} />
+            </li>
+            {topics.map((t) => (
+              <li key={t.name}>
+                <TopicLink
+                  to={topicPath(t.name)}
+                  label={t.name}
+                  count={topicCounts[t.name] ?? 0}
+                  active={topic?.name === t.name}
+                />
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <nav aria-label="Series">
+          <h2 className="mb-2 px-3 text-sm font-medium text-text">Series</h2>
+          <ul className="space-y-0.5">
+            {series.map((s) => (
+              <li key={s.id}>
+                <Link
+                  to={`/blog/${s.slugs[0]}`}
+                  className="flex items-center justify-between rounded-md px-3 py-2 text-sm text-muted transition-colors hover:bg-surface/60 hover:text-text"
+                >
+                  <span>{s.title}</span>
+                  <span className="font-mono text-xs">{s.slugs.length} parts</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <div>
+          <h2 className="mb-3 px-3 text-sm font-medium text-text">Popular tags</h2>
+          <ul className="flex flex-wrap gap-1.5 px-3">
+            {popularTags.map((t) => (
+              <li key={t}>
+                <button
+                  type="button"
+                  onClick={() => onTag(t === tag ? "" : t)}
+                  aria-pressed={t === tag}
+                  className={`rounded-md border px-2 py-1 font-mono text-xs transition-colors ${
+                    t === tag
+                      ? "border-accent/50 bg-accent/10 text-accent"
+                      : "border-border text-muted hover:border-muted/50 hover:text-text"
+                  }`}
+                >
+                  {t}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <a
+          href="/rss.xml"
+          className="flex items-center gap-2 px-3 text-sm text-muted transition-colors hover:text-text"
+        >
+          <Rss size={14} />
+          RSS feed
+        </a>
+      </div>
+    </aside>
   );
 }
 
 // ── Page ────────────────────────────────────────────────────────────────────
+
 export default function BlogList() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeCategory = searchParams.get("category") ?? "All";
+  const { topic: topicSlug } = useParams();
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const tag = params.get("tag") ?? "";
+  const query = params.get("q") ?? "";
+  const legacyCategory = params.get("category");
+  const reduce = usePrefersReducedMotion();
+  const searchRef = useRef(null);
+  const archiveRef = useRef(null);
+  const [expandedKey, setExpandedKey] = useState(null);
+  const [searchTouched, setSearchTouched] = useState(false);
 
-  const counts = buildCounts();
-  const tabs = visibleCategories(counts);
+  const topic = topicSlug ? topics.find((t) => t.slug === topicSlug) : null;
+  const q = query.trim();
+  const browsing = !topic && !tag && !q;
+  // Post text for full-text search is its own chunk; fetch it once the reader
+  // shows intent to search, not on every visit.
+  const searchIndex = useSearchIndex(searchTouched || Boolean(q));
 
-  // Derive filtered posts
-  const filteredPosts =
-    activeCategory === "All"
-      ? posts
-      : posts.filter((p) => p.category === activeCategory);
+  const filtered = useMemo(() => {
+    const list = posts
+      .filter((p) => (!topic || p.category === topic.name) && (!tag || p.tags.includes(tag)))
+      .map((p) => ({ post: p, score: scorePost(p, q, searchIndex?.[p.slug]) }))
+      .filter((r) => r.score > 0);
+    // Search results are ranked; everything else stays newest first.
+    if (q) list.sort((a, b) => b.score - a.score || b.post.date.localeCompare(a.post.date));
+    return list.map((r) => r.post);
+  }, [topic, tag, q, searchIndex]);
 
-  // When "All" is active, split into featured hero + rest
-  const featuredPost =
-    activeCategory === "All" ? filteredPosts.find((p) => p.featured) : null;
-  const gridPosts =
-    activeCategory === "All"
-      ? filteredPosts.filter((p) => !p.featured)
-      : filteredPosts;
+  // "/" focuses search, as on most docs and blog sites.
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = e.target;
+      if (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+      e.preventDefault();
+      searchRef.current?.focus();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
-  function handleTabClick(cat) {
-    if (cat === "All") {
-      setSearchParams({});
-    } else {
-      setSearchParams({ category: cat });
+  // The list only animates when a filter changes, not on first paint.
+  const listKey = `${topicSlug}|${tag}|${query}`;
+  const firstKey = useRef(listKey);
+  const animateList = !reduce && listKey !== firstKey.current;
+
+  // Old links used /blog?category=Graphics; send them to the topic page.
+  if (legacyCategory) {
+    const t = topics.find((x) => x.name === legacyCategory);
+    return <Navigate to={t ? topicPath(t.name) : "/blog"} replace />;
+  }
+  if (topicSlug && !topic) return <NotFound />;
+
+  // The lead needs an illustration to carry the top of the page: a featured
+  // post with a cover wins, otherwise the newest post that has one.
+  const lead =
+    posts.find((p) => p.featured && coverImage(p)) ??
+    posts.find((p) => coverImage(p)) ??
+    posts[0];
+  const latest = posts.filter((p) => p !== lead).slice(0, 4);
+
+  // Search results are ranked, so they are not split by year.
+  const expanded = expandedKey === listKey || filtered.length <= PAGE_SIZE + 3;
+  const visible = expanded ? filtered : filtered.slice(0, PAGE_SIZE);
+  const groups = q ? [{ year: null, posts: visible }] : groupByYear(visible);
+
+  function update(next, { replace = false, scroll = true } = {}) {
+    const path = "topic" in next ? (next.topic ? topicPath(next.topic) : "/blog") : topic ? topicPath(topic.name) : "/blog";
+    const merged = { tag, q: query, ...next };
+    const search = new URLSearchParams(
+      Object.entries({ tag: merged.tag, q: merged.q }).filter(([, v]) => v)
+    ).toString();
+    navigate(search ? `${path}?${search}` : path, { replace });
+    if (scroll) {
+      // If the list header is above the fold, bring it back into view so the
+      // new results are what the reader is looking at.
+      requestAnimationFrame(() => {
+        const el = archiveRef.current;
+        if (el && el.getBoundingClientRect().top < 0) {
+          el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+        }
+      });
     }
   }
+
+  const setTag = (t) => update({ tag: t });
+  const setQuery = (v) => update({ q: v }, { replace: true, scroll: false });
+  const clearAll = () => update({ topic: "", tag: "", q: "" });
+
+  let heading = "All posts";
+  if (topic) heading = topic.name;
+  else if (tag) heading = `Tagged ${tag}`;
+  else if (q) heading = "Search results";
 
   return (
     <>
       <Seo
-        title="Blog"
-        description="Thoughts on graphics programming, game development, C++, Rust, and systems design by Canberk Pitirli."
-        path="/blog"
+        title={topic ? `${topic.name} posts` : "Blog"}
+        description={
+          topic
+            ? `${topic.blurb} Posts by Canberk Pitirli.`
+            : "Writing on graphics programming, game development, performance, and systems engineering by Canberk Pitirli."
+        }
+        path={topic ? topicPath(topic.name) : "/blog"}
       />
       <ScrollProgress />
-      <CursorGlow />
-      <FloatingOrbs />
-      <div className="min-h-screen bg-bg">
+      <div className="min-h-[100dvh] bg-bg">
         <Navbar />
-        <main id="main" className="max-w-4xl mx-auto px-5 md:px-8 pt-28 pb-24">
-
+        <main id="main" className="mx-auto max-w-6xl px-4 pb-24 pt-28 sm:px-5 md:px-8">
           {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
+          <motion.header
+            initial={reduce ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-10"
+            transition={{ duration: 0.5, ease: EASE }}
+            className={browsing ? "mb-12" : "mb-10"}
           >
             <Link
               to="/"
-              className="inline-flex items-center gap-2 text-muted text-sm hover:text-text transition-colors mb-8"
+              className="mb-8 inline-flex items-center gap-2 text-sm text-muted transition-colors hover:text-text"
             >
               <ArrowLeft size={15} />
-              Back to portfolio
+              Portfolio
             </Link>
-            <div className="flex items-center gap-4 mb-3">
-              <h1 className="font-heading font-bold text-4xl text-text">Blog</h1>
-              <div className="flex-1 h-px bg-gradient-to-r from-border to-transparent" />
-            </div>
-            <p className="text-muted">
-              Thoughts on graphics programming, game dev, and systems design.
-            </p>
-          </motion.div>
+            <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <h1 className="font-heading text-4xl font-bold tracking-tight text-text md:text-5xl">
+                  <Link to="/blog" className="hover:text-text">Blog</Link>
+                </h1>
+                <p className="mt-3 max-w-[56ch] leading-relaxed text-muted">
+                  Graphics programming, game development, and systems work, written
+                  up from real projects.
+                </p>
+              </div>
 
-          {/* Category filter tabs */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.15 }}
-            className="mb-10"
-          >
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {tabs.map((cat) => {
-                const isActive = cat === activeCategory;
-                return (
-                  <button
-                    key={cat}
-                    onClick={() => handleTabClick(cat)}
-                    className={[
-                      "flex-shrink-0 text-sm px-4 py-1.5 rounded-full border transition-all duration-200 whitespace-nowrap",
-                      isActive
-                        ? "bg-accent text-bg font-semibold border-accent"
-                        : "bg-surface border-border text-muted hover:text-text hover:border-accent/30",
-                    ].join(" ")}
-                  >
-                    {cat}
-                    <span
-                      className={[
-                        "ml-1.5 text-xs",
-                        isActive ? "text-bg/70" : "text-muted/60",
-                      ].join(" ")}
+              <div className="w-full lg:max-w-sm">
+                <label htmlFor="blog-search" className="sr-only">
+                  Search posts
+                </label>
+                <div className="relative">
+                  <Search
+                    size={16}
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+                  />
+                  <input
+                    ref={searchRef}
+                    id="blog-search"
+                    type="search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onFocus={() => setSearchTouched(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        setQuery("");
+                        e.currentTarget.blur();
+                      }
+                    }}
+                    placeholder="Search all posts"
+                    autoComplete="off"
+                    className="w-full rounded-lg border border-border bg-surface py-2.5 pl-10 pr-10 text-sm text-text placeholder:text-muted/80 transition-colors focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/20 [&::-webkit-search-cancel-button]:hidden"
+                  />
+                  {query ? (
+                    <button
+                      type="button"
+                      onClick={() => setQuery("")}
+                      aria-label="Clear search"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted hover:text-text"
                     >
-                      ({counts[cat] ?? 0})
-                    </span>
-                  </button>
-                );
-              })}
+                      <X size={14} />
+                    </button>
+                  ) : (
+                    <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded border border-border px-1.5 font-mono text-[11px] text-muted sm:block">
+                      /
+                    </kbd>
+                  )}
+                </div>
+              </div>
             </div>
-          </motion.div>
+          </motion.header>
 
-          {/* Content */}
-          {filteredPosts.length === 0 ? (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.4 }}
-              className="text-muted text-center py-16"
-            >
-              Nothing here yet.
-            </motion.p>
-          ) : (
-            <>
-              {/* Featured hero — only when "All" is active */}
-              {featuredPost && <FeaturedCard post={featuredPost} />}
+          {browsing && <Lead lead={lead} latest={latest} />}
 
-              {/* Grid */}
-              {gridPosts.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {gridPosts.map((post, i) => (
-                    <PostCard key={post.slug} post={post} index={i} />
-                  ))}
+          <div className={`grid gap-12 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-14 ${browsing ? "pt-12" : ""}`}>
+            <Sidebar topic={topic} tag={tag} onTag={setTag} />
+
+            <section ref={archiveRef} aria-labelledby="archive-heading" className="min-w-0 scroll-mt-24">
+              {/* Topic chips: the sidebar's job on small screens */}
+              <nav
+                aria-label="Topics"
+                className="-mx-4 mb-8 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-none lg:hidden"
+              >
+                {[null, ...topics].map((t) => {
+                  const active = (topic?.name ?? null) === (t?.name ?? null);
+                  return (
+                    <Link
+                      key={t?.slug ?? "all"}
+                      to={t ? topicPath(t.name) : "/blog"}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex-shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
+                        active
+                          ? "border-accent bg-accent font-medium text-bg"
+                          : "border-border text-muted hover:text-text"
+                      }`}
+                    >
+                      {t ? t.name : "All"}
+                      <span className={`ml-1.5 font-mono text-xs ${active ? "text-bg/70" : "text-muted/70"}`}>
+                        {t ? topicCounts[t.name] ?? 0 : posts.length}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-border pb-5">
+                <div>
+                  <h2 id="archive-heading" className="font-heading text-2xl font-bold tracking-tight text-text">
+                    {heading}
+                  </h2>
+                  {topic && (
+                    <p className="mt-1.5 max-w-[60ch] text-sm leading-relaxed text-muted">
+                      {topic.blurb}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="text-muted" aria-live="polite">
+                    {filtered.length} {filtered.length === 1 ? "post" : "posts"}
+                    {q && (
+                      <>
+                        {" "}matching <span className="text-text">{q}</span>
+                        {!searchIndex && <span className="text-muted">, searching post text...</span>}
+                      </>
+                    )}
+                  </span>
+                  {!browsing && (
+                    <button
+                      type="button"
+                      onClick={clearAll}
+                      className="text-accent hover:underline underline-offset-4"
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Active tag on small screens, where the tag list is hidden */}
+              {tag && (
+                <div className="mt-4 lg:hidden">
+                  <button
+                    type="button"
+                    onClick={() => setTag("")}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-accent/50 bg-accent/10 px-2 py-1 font-mono text-xs text-accent"
+                  >
+                    #{tag}
+                    <X size={12} />
+                  </button>
                 </div>
               )}
-            </>
-          )}
+
+              <motion.div
+                key={listKey}
+                initial={animateList ? { opacity: 0, y: 8 } : false}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: EASE }}
+              >
+                {filtered.length === 0 ? (
+                  <div className="py-20 text-center">
+                    <p className="font-heading text-lg text-text">No posts match that.</p>
+                    <p className="mt-2 text-sm text-muted">
+                      Try a broader term, or browse by topic instead.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={clearAll}
+                      className="mt-6 rounded-lg border border-border px-4 py-2 text-sm text-text transition-colors hover:border-accent/50 active:scale-[0.98]"
+                    >
+                      Show all posts
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {groups.map((g, i) => (
+                      <div key={g.year ?? "results"}>
+                        {g.year && (
+                          <h3 className={`font-mono text-sm text-muted ${i === 0 ? "pt-8" : "pt-12"}`}>
+                            {g.year}
+                          </h3>
+                        )}
+                        <div className="divide-y divide-border/70">
+                          {g.posts.map((post) => (
+                            <PostRow
+                              key={post.slug}
+                              post={post}
+                              query={q}
+                              body={searchIndex?.[post.slug]}
+                              activeTag={tag}
+                              onTag={setTag}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    {!expanded && (
+                      <div className="border-t border-border/70 pt-8 text-center">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedKey(listKey)}
+                          className="rounded-lg border border-border px-5 py-2.5 text-sm text-text transition-colors hover:border-accent/50 active:scale-[0.98]"
+                        >
+                          Show {filtered.length - PAGE_SIZE} older posts
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </motion.div>
+            </section>
+          </div>
         </main>
       </div>
     </>
