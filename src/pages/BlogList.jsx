@@ -7,7 +7,7 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { ArrowLeft, ArrowUpRight, Rss, Search, X } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Search, X } from "lucide-react";
 import { posts, topics, topicPath, series } from "../data/posts";
 import Navbar from "../components/Navbar";
 import ScrollProgress from "../components/ScrollProgress";
@@ -366,14 +366,6 @@ function Sidebar({ topic, tag, onTag }) {
             ))}
           </ul>
         </div>
-
-        <a
-          href="/rss.xml"
-          className="flex items-center gap-2 px-3 text-sm text-muted transition-colors hover:text-text"
-        >
-          <Rss size={14} />
-          RSS feed
-        </a>
       </div>
     </aside>
   );
