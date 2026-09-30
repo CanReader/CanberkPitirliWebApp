@@ -29,6 +29,7 @@ import ScrollProgress from "../components/ScrollProgress";
 import Seo from "../components/Seo";
 import BackToTop from "../components/BackToTop";
 import Reveal, { EASE_OUT, staggerParent, fadeUpChild } from "../components/Reveal";
+import { KineticText, Tilt, WipeReveal } from "../components/BlogMotion";
 import NotFound from "./NotFound";
 import { trackEvent } from "../lib/analytics";
 import { usePostContent } from "../lib/postContent";
@@ -167,7 +168,7 @@ function ZoomableImage({ src, alt }) {
   }, [open, close]);
 
   return (
-    <Reveal as="figure" className="wide my-12">
+    <figure className="wide my-12">
       <button
         ref={triggerRef}
         type="button"
@@ -175,13 +176,15 @@ function ZoomableImage({ src, alt }) {
         className="group/img block w-full cursor-zoom-in rounded-xl"
         aria-label={alt ? `Enlarge image: ${alt}` : "Enlarge image"}
       >
-        <img
-          src={src}
-          alt={alt || ""}
-          loading="lazy"
-          decoding="async"
-          className="mx-auto block h-auto max-w-full rounded-xl border border-border transition-[border-color,transform] duration-500 ease-out group-hover/img:border-muted/40 motion-safe:group-hover/img:scale-[1.005]"
-        />
+        <WipeReveal className="mx-auto w-fit max-w-full">
+          <img
+            src={src}
+            alt={alt || ""}
+            loading="lazy"
+            decoding="async"
+            className="block h-auto max-w-full rounded-xl border border-border transition-[border-color,transform] duration-500 ease-out group-hover/img:border-muted/40 motion-safe:group-hover/img:scale-[1.005]"
+          />
+        </WipeReveal>
       </button>
       {alt && (
         <figcaption className="mx-auto mt-4 max-w-[40rem] text-center font-sans text-sm leading-relaxed text-muted">
@@ -230,7 +233,7 @@ function ZoomableImage({ src, alt }) {
         </AnimatePresence>,
         document.body
       )}
-    </Reveal>
+    </figure>
   );
 }
 
@@ -554,13 +557,17 @@ function RelatedPosts({ current }) {
                 </h3>
               </div>
               {cover && (
-                <img
-                  src={cover.src}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  className="hidden aspect-[16/10] w-32 shrink-0 rounded-md border border-border object-cover transition-transform duration-500 group-hover:scale-[1.04] sm:block"
-                />
+                <Tilt max={10} className="relative hidden shrink-0 sm:block">
+                  <Link to={`/blog/${p.slug}`} tabIndex={-1} aria-hidden="true">
+                  <img
+                    src={cover.src}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    className="aspect-[16/10] w-32 rounded-md border border-border object-cover"
+                  />
+                  </Link>
+                </Tilt>
               )}
             </Reveal>
           );
@@ -678,9 +685,9 @@ export default function BlogPost() {
                 </Link>
               </motion.nav>
 
-              <motion.h1 variants={fadeUpChild} className="text-balance font-heading text-[2.1rem] font-bold leading-[1.12] tracking-[-0.02em] text-text md:text-[2.9rem]">
-                {post.title}
-              </motion.h1>
+              <h1 className="text-balance font-heading text-[2.1rem] font-bold leading-[1.12] tracking-[-0.02em] text-text md:text-[2.9rem]">
+                <KineticText text={post.title} delay={0.1} stagger={0.035} />
+              </h1>
               <motion.p variants={fadeUpChild} className="mt-6 text-pretty font-serif text-[1.25rem] leading-[1.6] text-zinc-400 md:text-[1.375rem]">
                 {post.excerpt}
               </motion.p>

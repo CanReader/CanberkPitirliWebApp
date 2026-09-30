@@ -7,13 +7,14 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { ArrowLeft, Rss, Search, X } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Rss, Search, X } from "lucide-react";
 import { posts, topics, topicPath, series } from "../data/posts";
 import Navbar from "../components/Navbar";
 import ScrollProgress from "../components/ScrollProgress";
 import Seo from "../components/Seo";
 import BackToTop from "../components/BackToTop";
 import Reveal, { EASE_OUT, staggerParent, fadeUpChild } from "../components/Reveal";
+import { KineticText, Tilt, AnimatedNumber, DrawLine, useParallax } from "../components/BlogMotion";
 import NotFound from "./NotFound";
 import usePrefersReducedMotion from "../lib/usePrefersReducedMotion";
 import {
@@ -108,14 +109,18 @@ function Meta({ post, className = "" }) {
   );
 }
 
-function Cover({ post, className, sizes, eager = false }) {
+function Cover({ post, className, sizes, eager = false, parallax = false }) {
+  const frameRef = useRef(null);
+  const drift = useParallax(frameRef, 18);
   const cover = coverImage(post);
   if (!cover) return null;
   return (
     <div
+      ref={frameRef}
       className={`overflow-hidden rounded-lg border border-border bg-surface ${className}`}
     >
-      <img
+      <motion.img
+        style={parallax ? drift : undefined}
         src={cover.src}
         alt=""
         sizes={sizes}
@@ -146,7 +151,11 @@ function Lead({ lead, latest }) {
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 1.1, delay: 0.15, ease: EASE }}
         >
-          <Cover post={lead} eager className="mb-6 aspect-[16/9]" />
+          <Tilt max={3} className="relative z-10 mb-6">
+            <Link to={`/blog/${lead.slug}`} tabIndex={-1} aria-hidden="true" onMouseEnter={() => prefetchPost(lead.slug)}>
+              <Cover post={lead} eager parallax className="aspect-[16/9]" />
+            </Link>
+          </Tilt>
         </motion.div>
         <Meta post={lead} className="mb-3" />
         <h2 className="font-heading text-2xl font-bold leading-tight tracking-tight text-text transition-colors group-hover:text-accent md:text-[2.1rem]">
@@ -187,7 +196,7 @@ function Lead({ lead, latest }) {
 
 // ── Archive row ─────────────────────────────────────────────────────────────
 
-function PostRow({ post, query, body, activeTag, onTag }) {
+function PostRow({ post, query, body, activeTag, onTag, hovered, onHover, delay = 0 }) {
   const hasCover = Boolean(coverImage(post));
   const snippet = query ? searchSnippet(post, query, body) : null;
   const terms = query ? query.toLowerCase().split(/\s+/).filter(Boolean) : [];
@@ -195,15 +204,32 @@ function PostRow({ post, query, body, activeTag, onTag }) {
     <Reveal
       as="article"
       y={14}
+      delay={delay}
+      onMouseEnter={() => onHover(post.slug)}
       className={`group relative grid gap-x-8 py-7 ${
         hasCover ? "sm:grid-cols-[minmax(0,1fr)_200px]" : ""
       }`}
     >
-      <div className="min-w-0">
+      {/* One highlight shared by all rows; it glides to whichever row the
+          pointer is on. */}
+      {hovered && (
+        <motion.span
+          layoutId="row-hover"
+          aria-hidden="true"
+          transition={{ type: "spring", stiffness: 350, damping: 34 }}
+          className="pointer-events-none absolute -inset-x-4 inset-y-1.5 hidden rounded-xl bg-surface/60 md:block"
+        />
+      )}
+      <div className="relative min-w-0">
         <Meta post={post} className="mb-2.5" />
         <h4 className="font-heading text-lg font-semibold leading-snug text-text transition-colors group-hover:text-accent sm:text-xl">
           <PostLink post={post}>
             <Highlight text={post.title} terms={terms} />
+            <ArrowUpRight
+              size={18}
+              aria-hidden="true"
+              className="ml-1 inline-block -translate-x-1 translate-y-px align-baseline opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100"
+            />
           </PostLink>
         </h4>
         {snippet ? (
@@ -237,11 +263,14 @@ function PostRow({ post, query, body, activeTag, onTag }) {
       </div>
       {/* Thumbnails are text-heavy diagrams; too small to read on phones. */}
       {hasCover && (
-        <Cover
-          post={post}
-          sizes="200px"
-          className="hidden aspect-[16/10] self-start sm:block"
-        />
+        // The tilt layer sits above the row's stretched title link, so it
+        // links to the post itself (hidden from keyboard and screen readers,
+        // which already have the title link).
+        <Tilt max={8} className="relative hidden self-start sm:block">
+          <Link to={`/blog/${post.slug}`} tabIndex={-1} aria-hidden="true" onMouseEnter={() => prefetchPost(post.slug)}>
+            <Cover post={post} sizes="200px" className="aspect-[16/10]" />
+          </Link>
+        </Tilt>
       )}
     </Reveal>
   );
@@ -270,7 +299,7 @@ function TopicLink({ to, label, count, active }) {
         </motion.span>
       )}
       <span className="relative">{label}</span>
-      <span className="relative font-mono text-xs text-muted">{count}</span>
+      <AnimatedNumber value={count} className="relative font-mono text-xs text-muted" />
     </Link>
   );
 }
@@ -364,6 +393,7 @@ export default function BlogList() {
   const archiveRef = useRef(null);
   const [expandedKey, setExpandedKey] = useState(null);
   const [searchTouched, setSearchTouched] = useState(false);
+  const [hoveredSlug, setHoveredSlug] = useState(null);
 
   const topic = topicSlug ? topics.find((t) => t.slug === topicSlug) : null;
   const q = query.trim();
@@ -483,7 +513,9 @@ export default function BlogList() {
             <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
               <motion.div variants={fadeUpChild}>
                 <h1 className="font-heading text-4xl font-bold tracking-tight text-text md:text-5xl">
-                  <Link to="/blog" className="hover:text-text">Blog</Link>
+                  <Link to="/blog" className="hover:text-text">
+                    <KineticText text="Blog" delay={0.05} />
+                  </Link>
                 </h1>
                 <p className="mt-3 max-w-[56ch] leading-relaxed text-muted">
                   Graphics programming, game development, and systems work, written
@@ -588,7 +620,7 @@ export default function BlogList() {
                       )}
                       <span className="relative">{t ? t.name : "All"}</span>
                       <span className={`relative ml-1.5 font-mono text-xs ${active ? "text-bg/70" : "text-muted/70"}`}>
-                        {t ? topicCounts[t.name] ?? 0 : posts.length}
+                        <AnimatedNumber value={t ? topicCounts[t.name] ?? 0 : posts.length} />
                       </span>
                     </Link>
                   );
@@ -608,7 +640,7 @@ export default function BlogList() {
                 </div>
                 <div className="flex items-center gap-4 text-sm">
                   <span className="text-muted" aria-live="polite">
-                    {filtered.length} {filtered.length === 1 ? "post" : "posts"}
+                    <AnimatedNumber value={filtered.length} /> {filtered.length === 1 ? "post" : "posts"}
                     {q && (
                       <>
                         {" "}matching <span className="text-text">{q}</span>
@@ -669,27 +701,34 @@ export default function BlogList() {
                   </motion.div>
                 ) : (
                   <>
-                    {groups.map((g, i) => (
-                      <div key={g.year ?? "results"}>
-                        {g.year && (
-                          <h3 className={`font-mono text-sm text-muted ${i === 0 ? "pt-8" : "pt-12"}`}>
-                            {g.year}
-                          </h3>
-                        )}
-                        <div className="divide-y divide-border/70">
-                          {g.posts.map((post) => (
-                            <PostRow
-                              key={post.slug}
-                              post={post}
-                              query={q}
-                              body={searchIndex?.[post.slug]}
-                              activeTag={tag}
-                              onTag={setTag}
-                            />
-                          ))}
+                    <div onMouseLeave={() => setHoveredSlug(null)}>
+                      {groups.map((g, i) => (
+                        <div key={g.year ?? "results"}>
+                          {g.year && (
+                            <h3 className={`flex items-center gap-4 font-mono text-sm text-muted ${i === 0 ? "pt-8" : "pt-12"}`}>
+                              {g.year}
+                              <DrawLine className="flex-1" />
+                            </h3>
+                          )}
+                          <div className="divide-y divide-border/70">
+                            {g.posts.map((post) => (
+                              <PostRow
+                                key={post.slug}
+                                post={post}
+                                query={q}
+                                body={searchIndex?.[post.slug]}
+                                activeTag={tag}
+                                onTag={setTag}
+                                hovered={hoveredSlug === post.slug}
+                                onHover={setHoveredSlug}
+                                // After a filter change, the first rows cascade in.
+                                delay={animateList ? Math.min(visible.indexOf(post), 6) * 0.06 : 0}
+                              />
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                     {!expanded && (
                       <div className="border-t border-border/70 pt-8 text-center">
                         <motion.button
