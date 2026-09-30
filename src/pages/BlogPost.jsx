@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -8,6 +8,7 @@ import {
   Check,
   List,
   Link as LinkIcon,
+  X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -32,6 +33,10 @@ import { usePostContent } from "../lib/postContent";
 // Syntax highlighting is heavy; load it only for posts that contain code.
 const CodeBlock = lazy(() => import("../components/CodeBlock"));
 
+// Layout: every article element sits in a centered reading column
+// (`.article-grid`, see index.css). Diagrams, code, and tables add the
+// `wide` class to break out of it, since their detail needs the room.
+
 function nodeText(children) {
   if (typeof children === "string") return children;
   if (Array.isArray(children)) return children.map(nodeText).join("");
@@ -39,10 +44,13 @@ function nodeText(children) {
   return "";
 }
 
+/* ── Article elements ── */
+
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
+      type="button"
       onClick={() => {
         navigator.clipboard?.writeText(text).then(() => {
           setCopied(true);
@@ -51,40 +59,151 @@ function CopyButton({ text }) {
         });
       }}
       aria-label={copied ? "Copied" : "Copy code"}
-      className="flex items-center gap-1.5 text-xs font-mono text-muted hover:text-accent transition-colors"
+      className="flex items-center gap-1.5 rounded-md px-2 py-1 font-sans text-xs text-muted transition-colors hover:bg-white/5 hover:text-text"
     >
-      {copied ? (
-        <>
-          <Check size={13} className="text-accent" /> copied
-        </>
-      ) : (
-        <>
-          <Copy size={13} /> copy
-        </>
-      )}
+      {copied ? <Check size={13} className="text-accent" /> : <Copy size={13} />}
+      {copied ? "Copied" : "Copy"}
     </button>
+  );
+}
+
+const LANGUAGE_NAMES = {
+  cpp: "C++",
+  c: "C",
+  csharp: "C#",
+  cs: "C#",
+  hlsl: "HLSL",
+  glsl: "GLSL",
+  js: "JavaScript",
+  javascript: "JavaScript",
+  ts: "TypeScript",
+  typescript: "TypeScript",
+  py: "Python",
+  python: "Python",
+  rust: "Rust",
+  go: "Go",
+  java: "Java",
+  bash: "Shell",
+  sh: "Shell",
+  shell: "Shell",
+  cmake: "CMake",
+  json: "JSON",
+  kotlin: "Kotlin",
+};
+
+function CodeFigure({ language, code }) {
+  return (
+    <div className="wide group/code my-10 overflow-hidden rounded-xl border border-border bg-[#0f0f12]">
+      <div className="flex items-center justify-between border-b border-border/70 py-1.5 pl-4 pr-2">
+        <span className="font-sans text-xs text-muted">
+          {language ? LANGUAGE_NAMES[language] ?? language : "Code"}
+        </span>
+        <CopyButton text={code} />
+      </div>
+      {language ? (
+        <Suspense fallback={<PlainCode code={code} />}>
+          <CodeBlock language={language} code={code} />
+        </Suspense>
+      ) : (
+        <PlainCode code={code} />
+      )}
+    </div>
+  );
+}
+
+function PlainCode({ code }) {
+  return (
+    <pre className="overflow-x-auto px-5 py-4 font-mono text-[0.875rem] leading-[1.7] text-zinc-300">
+      {code}
+    </pre>
+  );
+}
+
+// Diagrams are detailed; clicking one opens it full screen.
+function ZoomableImage({ src, alt }) {
+  const dialogRef = useRef(null);
+  const open = () => dialogRef.current?.showModal();
+  const close = () => dialogRef.current?.close();
+  return (
+    <figure className="wide my-12">
+      <button
+        type="button"
+        onClick={open}
+        className="block w-full cursor-zoom-in rounded-xl"
+        aria-label={alt ? `Enlarge image: ${alt}` : "Enlarge image"}
+      >
+        <img
+          src={src}
+          alt={alt || ""}
+          loading="lazy"
+          decoding="async"
+          className="mx-auto block h-auto max-w-full rounded-xl border border-border"
+        />
+      </button>
+      {alt && (
+        <figcaption className="mx-auto mt-4 max-w-[40rem] text-center font-sans text-sm leading-relaxed text-muted">
+          {alt}
+        </figcaption>
+      )}
+      <dialog
+        ref={dialogRef}
+        onClick={(e) => e.target === e.currentTarget && close()}
+        className="m-auto max-h-none max-w-none bg-transparent p-0 backdrop:bg-bg/90 backdrop:backdrop-blur-sm"
+      >
+        <div className="flex h-[100dvh] w-[100vw] items-center justify-center p-4 md:p-10" onClick={close}>
+          <img
+            src={src}
+            alt={alt || ""}
+            className="max-h-full max-w-full cursor-zoom-out rounded-lg object-contain"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={close}
+          aria-label="Close"
+          className="fixed right-4 top-4 rounded-full border border-border bg-surface p-2 text-muted transition-colors hover:text-text"
+        >
+          <X size={18} />
+        </button>
+      </dialog>
+    </figure>
+  );
+}
+
+function Heading({ as: Tag, children, className }) {
+  const id = slugifyHeading(nodeText(children));
+  return (
+    <Tag id={id} className={`group relative scroll-mt-28 ${className}`}>
+      <a
+        href={`#${id}`}
+        aria-label="Link to this section"
+        className="absolute -left-8 top-1/2 hidden -translate-y-1/2 p-1 text-muted opacity-0 transition-opacity hover:text-accent focus-visible:opacity-100 group-hover:opacity-100 md:block"
+      >
+        <LinkIcon size={16} />
+      </a>
+      {children}
+    </Tag>
   );
 }
 
 const mdComponents = {
   h1: ({ children }) => (
-    <h1 className="font-heading font-bold text-3xl text-text mt-10 mb-4">{children}</h1>
+    <Heading as="h2" className="mb-5 mt-14 font-heading text-[1.75rem] font-semibold leading-snug tracking-tight text-text">
+      {children}
+    </Heading>
   ),
   h2: ({ children }) => (
-    <h2
-      id={slugifyHeading(nodeText(children))}
-      className="font-heading font-semibold text-2xl md:text-[1.7rem] tracking-tight text-text mt-14 mb-4 scroll-mt-24"
-    >
+    <Heading as="h2" className="mb-5 mt-14 font-heading text-[1.6rem] font-semibold leading-snug tracking-tight text-text md:text-[1.75rem]">
       {children}
-    </h2>
+    </Heading>
   ),
   h3: ({ children }) => (
-    <h3
-      id={slugifyHeading(nodeText(children))}
-      className="font-heading font-semibold text-xl text-text mt-10 mb-3 scroll-mt-24"
-    >
+    <Heading as="h3" className="mb-3 mt-10 font-heading text-[1.25rem] font-semibold leading-snug text-text md:text-[1.35rem]">
       {children}
-    </h3>
+    </Heading>
+  ),
+  h4: ({ children }) => (
+    <h4 className="mb-2 mt-8 font-heading text-lg font-semibold text-text">{children}</h4>
   ),
   p: ({ children, node }) => {
     const onlyImage =
@@ -92,26 +211,12 @@ const mdComponents = {
       node.children[0].type === "element" &&
       node.children[0].tagName === "img";
     if (onlyImage) return <>{children}</>;
-    return <p className="text-[1.0625rem] text-zinc-300 leading-[1.8] mb-6">{children}</p>;
+    return <p className="mb-7">{children}</p>;
   },
-  img: ({ src, alt }) => (
-    <figure className="my-10">
-      <img
-        src={src}
-        alt={alt || ""}
-        loading="lazy"
-        decoding="async"
-        className="w-full rounded-xl border border-border object-cover"
-      />
-      {alt && (
-        <figcaption className="text-center text-sm text-muted mt-3">
-          {alt}
-        </figcaption>
-      )}
-    </figure>
-  ),
+  img: ({ src, alt }) => <ZoomableImage src={src} alt={alt} />,
   a: ({ href = "", children }) => {
-    const cls = "text-accent underline decoration-accent/30 underline-offset-[3px] hover:decoration-accent transition-colors";
+    const cls =
+      "text-accent underline decoration-accent/35 decoration-1 underline-offset-[5px] transition-colors hover:decoration-accent";
     // Links to other pages on this site stay in the same tab.
     if (href.startsWith("/")) {
       return <Link to={href} className={cls}>{children}</Link>;
@@ -126,73 +231,58 @@ const mdComponents = {
     );
   },
   ul: ({ children }) => (
-    <ul className="mb-6 space-y-2 pl-5 marker:text-accent [list-style-type:'▸_']">
+    <ul className="mb-7 space-y-2.5 pl-6 marker:text-accent [list-style-type:'▸_']">
       {children}
     </ul>
   ),
   ol: ({ children }) => (
-    <ol className="list-decimal list-inside mb-6 space-y-2 text-zinc-300">{children}</ol>
+    <ol className="mb-7 list-decimal space-y-2.5 pl-7 marker:font-sans marker:text-[0.9em] marker:text-muted">
+      {children}
+    </ol>
   ),
-  li: ({ children }) => (
-    <li className="text-[1.0625rem] text-zinc-300 leading-[1.8] pl-1">{children}</li>
-  ),
+  li: ({ children }) => <li className="pl-1.5">{children}</li>,
   blockquote: ({ children }) => (
-    <blockquote className="border-l-2 border-accent pl-5 my-8 text-zinc-300 [&>p]:text-zinc-200">
+    <blockquote className="my-10 border-l-2 border-accent pl-6 text-[1.2rem] italic leading-relaxed text-zinc-200 [&>p:last-child]:mb-0">
       {children}
     </blockquote>
   ),
-  hr: () => <hr className="border-border my-8" />,
+  hr: () => <hr aria-hidden="true" className="mx-auto my-14 w-16 border-zinc-700" />,
   strong: ({ children }) => (
-    <strong className="text-text font-semibold">{children}</strong>
+    <strong className="font-semibold text-zinc-100">{children}</strong>
   ),
+  em: ({ children }) => <em className="italic text-zinc-200">{children}</em>,
   table: ({ children }) => (
-    <div className="my-6 overflow-x-auto rounded-xl border border-border">
-      <table className="w-full border-collapse text-sm">{children}</table>
+    <div className="wide my-10 overflow-x-auto rounded-xl border border-border">
+      <table className="w-full border-collapse font-sans text-[0.925rem]">{children}</table>
     </div>
   ),
-  thead: ({ children }) => (
-    <thead className="bg-surface">{children}</thead>
-  ),
+  thead: ({ children }) => <thead className="bg-surface/70">{children}</thead>,
   tbody: ({ children }) => <tbody>{children}</tbody>,
   tr: ({ children }) => (
-    <tr className="border-b border-border last:border-0">{children}</tr>
+    <tr className="border-b border-border/70 last:border-0">{children}</tr>
   ),
   th: ({ children }) => (
-    <th className="text-left font-heading font-semibold text-text px-4 py-2.5 whitespace-nowrap">
+    <th className="whitespace-nowrap px-4 py-3 text-left font-heading font-semibold text-text">
       {children}
     </th>
   ),
   td: ({ children }) => (
-    <td className="text-zinc-300 px-4 py-2.5 align-top">{children}</td>
+    <td className="px-4 py-3 align-top leading-relaxed text-zinc-300">{children}</td>
   ),
-  code({ inline, className, children }) {
-    const match = /language-(\w+)/.exec(className || "");
-    if (!inline && match) {
-      const code = String(children).replace(/\n$/, "");
-      return (
-        <div className="my-6 rounded-xl overflow-hidden border border-border">
-          <div className="flex items-center justify-between bg-surface px-4 py-2 text-xs font-mono text-muted border-b border-border">
-            <span>{match[1]}</span>
-            <CopyButton text={code} />
-          </div>
-          <Suspense
-            fallback={
-              <pre className="p-4 overflow-x-auto text-sm font-mono text-muted bg-[#0d0d10]">
-                {code}
-              </pre>
-            }
-          >
-            <CodeBlock language={match[1]} code={code} />
-          </Suspense>
-        </div>
-      );
-    }
-    return (
-      <code className="font-mono text-accent bg-accent/10 px-1.5 py-0.5 rounded text-sm">
-        {children}
-      </code>
-    );
+  // Fenced blocks arrive as <pre><code class="language-x">. Render the whole
+  // block here so blocks without a language still get the code styling.
+  pre: ({ children }) => {
+    const child = Array.isArray(children) ? children[0] : children;
+    const className = child?.props?.className ?? "";
+    const language = /language-([\w+#-]+)/.exec(className)?.[1] ?? null;
+    const code = nodeText(child?.props?.children).replace(/\n$/, "");
+    return <CodeFigure language={language} code={code} />;
   },
+  code: ({ children }) => (
+    <code className="rounded-md border border-border bg-surface px-[0.35em] py-[0.1em] font-mono text-[0.82em] text-zinc-100">
+      {children}
+    </code>
+  ),
 };
 
 /* ── Table of contents ── */
@@ -223,24 +313,28 @@ function scrollToHeading(e, id) {
   history.replaceState(null, "", `#${id}`);
 }
 
+// Sits in the right margin next to the reading column, only when the screen
+// is wide enough that it never overlaps a wide diagram or code block.
 function TocSidebar({ headings, active }) {
   return (
-    <nav aria-label="Table of contents" className="hidden xl:block">
-      <div className="sticky top-28">
-        <p className="text-sm font-medium text-text mb-3">
-          On this page
-        </p>
-        <ul className="space-y-1.5 border-l border-border">
+    <nav
+      aria-label="Table of contents"
+      className="absolute inset-y-0 left-[calc(50%+28rem)] hidden w-52 min-[1360px]:block"
+    >
+      <div className="sticky top-28 max-h-[calc(100dvh-9rem)] overflow-y-auto pb-6 scrollbar-none">
+        <p className="mb-3 font-sans text-sm font-medium text-text">On this page</p>
+        <ul className="space-y-0.5 border-l border-border">
           {headings.map((h) => (
             <li key={h.id}>
               <a
                 href={`#${h.id}`}
                 onClick={(e) => scrollToHeading(e, h.id)}
-                className={`block text-[13px] leading-snug py-0.5 border-l-2 -ml-px transition-colors ${
+                aria-current={active === h.id ? "location" : undefined}
+                className={`-ml-px block border-l py-1 font-sans text-[13px] leading-snug transition-colors ${
                   h.depth === 3 ? "pl-6" : "pl-3"
                 } ${
                   active === h.id
-                    ? "border-accent text-accent"
+                    ? "border-accent text-text"
                     : "border-transparent text-muted hover:text-text"
                 }`}
               >
@@ -256,18 +350,18 @@ function TocSidebar({ headings, active }) {
 
 function TocMobile({ headings }) {
   return (
-    <details className="xl:hidden mb-8 bg-surface border border-border rounded-xl overflow-hidden group">
-      <summary className="flex items-center gap-2 px-4 py-3 text-sm text-muted cursor-pointer select-none hover:text-text transition-colors">
+    <details className="mb-10 overflow-hidden rounded-xl border border-border bg-surface/40 font-sans min-[1360px]:hidden">
+      <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-3 text-sm text-muted transition-colors hover:text-text">
         <List size={14} className="text-accent" />
         On this page
       </summary>
-      <ul className="px-4 pb-4 space-y-1.5">
+      <ul className="space-y-1.5 px-4 pb-4">
         {headings.map((h) => (
           <li key={h.id}>
             <a
               href={`#${h.id}`}
               onClick={(e) => scrollToHeading(e, h.id)}
-              className={`block text-sm text-muted hover:text-accent transition-colors py-0.5 ${
+              className={`block py-0.5 text-sm text-muted transition-colors hover:text-accent ${
                 h.depth === 3 ? "pl-4" : ""
               }`}
             >
@@ -287,14 +381,14 @@ function SeriesNav({ current }) {
   const parts = s.slugs.map((slug) => posts.find((p) => p.slug === slug)).filter(Boolean);
   const index = parts.findIndex((p) => p.slug === current.slug);
   return (
-    <nav aria-label={`${s.title} series`} className="mb-10 rounded-xl border border-border bg-surface/50 p-5">
+    <nav aria-label={`${s.title} series`} className="mb-10 rounded-xl border border-border bg-surface/40 p-5 font-sans">
       <p className="text-sm text-muted">
         Part {index + 1} of {parts.length} in{" "}
         <span className="font-medium text-text">{s.title}</span>
       </p>
       <ol className="mt-3 space-y-1.5">
         {parts.map((p, i) => (
-          <li key={p.slug} className="flex gap-3 text-sm">
+          <li key={p.slug} className="flex gap-3 text-sm leading-snug">
             <span className="w-4 shrink-0 font-mono text-muted">{i + 1}</span>
             {p.slug === current.slug ? (
               <span aria-current="page" className="font-medium text-accent">{p.title}</span>
@@ -316,10 +410,12 @@ function NeighborLink({ post, direction }) {
   return (
     <Link
       to={`/blog/${post.slug}`}
-      className={`group block py-2 ${isPrev ? "sm:text-left" : "sm:text-right"}`}
+      className={`group block rounded-xl border border-border p-5 transition-colors hover:border-accent/40 ${
+        isPrev ? "sm:text-left" : "sm:text-right"
+      }`}
     >
       <span
-        className={`mb-1.5 flex items-center gap-1.5 text-xs text-muted ${
+        className={`mb-2 flex items-center gap-1.5 text-xs text-muted ${
           isPrev ? "" : "sm:justify-end"
         }`}
       >
@@ -360,8 +456,8 @@ function RelatedPosts({ current }) {
   const related = relatedPosts(current);
   if (related.length === 0) return null;
   return (
-    <section aria-labelledby="related-heading" className="mt-16">
-      <div className="mb-2 flex items-baseline justify-between gap-4">
+    <section aria-labelledby="related-heading" className="mt-20">
+      <div className="mb-3 flex items-baseline justify-between gap-4">
         <h2 id="related-heading" className="font-heading text-xl font-semibold text-text">
           Keep reading
         </h2>
@@ -372,7 +468,7 @@ function RelatedPosts({ current }) {
           All {current.category} posts
         </Link>
       </div>
-      <ul className="divide-y divide-border/70">
+      <ul className="divide-y divide-border/70 border-t border-border/70">
         {related.map((p) => {
           const cover = coverImage(p);
           return (
@@ -418,9 +514,9 @@ function CopyLinkButton() {
           setTimeout(() => setCopied(false), 1600);
         });
       }}
-      className="inline-flex items-center gap-1.5 text-muted transition-colors hover:text-text"
+      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted transition-colors hover:border-muted/50 hover:text-text active:scale-[0.98]"
     >
-      {copied ? <Check size={13} className="text-accent" /> : <LinkIcon size={13} />}
+      {copied ? <Check size={14} className="text-accent" /> : <LinkIcon size={14} />}
       {copied ? "Copied" : "Copy link"}
     </button>
   );
@@ -433,7 +529,7 @@ function ArticleSkeleton() {
     <div aria-hidden="true" className="animate-pulse space-y-4 motion-reduce:animate-none">
       {lines.map((w, i) =>
         w === 0 ? (
-          <div key={i} className="h-4" />
+          <div key={i} className="h-5" />
         ) : (
           <div key={i} className="h-4 rounded bg-surface" style={{ width: `${w}%` }} />
         )
@@ -467,7 +563,7 @@ export default function BlogPost() {
   const index = posts.findIndex((p) => p.slug === slug);
   const newer = posts[index - 1] ?? null;
   const older = posts[index + 1] ?? null;
-  // Known before the body loads, so the layout doesn't shift when it arrives.
+  // Known before the body loads, so nothing shifts when it arrives.
   const showToc = post.headingCount >= 3;
 
   const jsonLd = {
@@ -499,132 +595,144 @@ export default function BlogPost() {
       <ScrollProgress />
       <div className="min-h-[100dvh] bg-bg">
         <Navbar />
-        <main
-          id="main"
-          className={`mx-auto px-4 sm:px-5 md:px-8 pt-28 pb-24 ${
-            showToc ? "max-w-3xl xl:max-w-5xl" : "max-w-3xl"
-          }`}
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
+        <main id="main" className="pb-28 pt-28 md:pt-36">
+          {/* Header */}
+          <motion.header
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="article-grid"
           >
-            {/* Header */}
-            <header className="mb-10 border-b border-border pb-8 xl:max-w-3xl">
+            <div>
               <nav aria-label="Breadcrumb" className="mb-8 flex items-center gap-2 text-sm text-muted">
                 <Link to="/blog" className="transition-colors hover:text-text">
                   Blog
                 </Link>
-                <span aria-hidden="true">/</span>
+                <span aria-hidden="true" className="text-border">/</span>
                 <Link to={topicPath(post.category)} className="text-accent hover:underline underline-offset-4">
                   {post.category}
                 </Link>
               </nav>
 
-              <h1 className="font-heading text-3xl font-bold leading-[1.15] tracking-tight text-text md:text-[2.6rem]">
+              <h1 className="text-balance font-heading text-[2.1rem] font-bold leading-[1.12] tracking-[-0.02em] text-text md:text-[2.9rem]">
                 {post.title}
               </h1>
-              <p className="mt-5 max-w-[65ch] text-lg leading-relaxed text-muted">
+              <p className="mt-6 text-pretty font-serif text-[1.25rem] leading-[1.6] text-zinc-400 md:text-[1.375rem]">
                 {post.excerpt}
               </p>
 
-              <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-                <span className="font-medium text-text">{site.author}</span>
-                <time dateTime={post.date} className="text-muted">
-                  {formatDate(post.date)}
-                </time>
-                <span className="text-muted">{post.readingTime} min read</span>
-                <CopyLinkButton />
-              </div>
-            </header>
-
-            <div
-              className={
-                showToc
-                  ? "xl:grid xl:grid-cols-[minmax(0,1fr)_210px] xl:gap-12"
-                  : ""
-              }
-            >
-              <div className="min-w-0">
-                <SeriesNav current={post} />
-                {showToc && headings.length > 0 && <TocMobile headings={headings} />}
-
-                {/* Content */}
-                {status === "ready" && (
-                  <article>
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkMath]}
-                      rehypePlugins={[rehypeKatex]}
-                      components={mdComponents}
-                    >
-                      {content}
-                    </ReactMarkdown>
-                  </article>
-                )}
-                {status === "loading" && <ArticleSkeleton />}
-                {status === "error" && (
-                  <div role="alert" className="rounded-xl border border-border bg-surface/50 px-6 py-10 text-center">
-                    <p className="font-heading text-lg text-text">This post didn't load.</p>
-                    <p className="mt-2 text-sm text-muted">
-                      Check your connection and try again.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={retry}
-                      className="mt-6 rounded-lg border border-border px-4 py-2 text-sm text-text transition-colors hover:border-accent/50 active:scale-[0.98]"
-                    >
-                      Try again
-                    </button>
-                  </div>
-                )}
-
-                {/* Tags */}
-                {post.tags.length > 0 && (
-                  <ul className="mt-12 flex flex-wrap gap-2" aria-label="Tags">
-                    {post.tags.map((tag) => (
-                      <li key={tag}>
-                        <Link
-                          to={`/blog?tag=${encodeURIComponent(tag)}`}
-                          className="inline-block rounded-md border border-border px-2.5 py-1 font-mono text-xs text-muted transition-colors hover:border-accent/50 hover:text-text"
-                        >
-                          #{tag}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                {/* Author */}
-                <div className="mt-12 flex items-center gap-4 border-y border-border py-6">
+              <div className="mt-10 flex flex-wrap items-center justify-between gap-x-6 gap-y-4 border-y border-border py-5">
+                <div className="flex items-center gap-3.5">
                   <img
                     src="/images/Profile2.1.webp"
-                    loading="lazy"
                     alt=""
-                    className="h-12 w-12 shrink-0 rounded-full border border-border bg-surface object-cover object-top"
+                    className="h-11 w-11 shrink-0 rounded-full border border-border bg-surface object-cover object-top"
                   />
-                  <p className="text-sm leading-relaxed text-muted">
-                    Written by{" "}
-                    <Link to="/" className="font-medium text-text hover:text-accent">
+                  <div className="text-sm leading-snug">
+                    <Link to="/" className="font-medium text-text transition-colors hover:text-accent">
                       {site.author}
                     </Link>
-                    , a software developer working on game engines, graphics
-                    programming, and systems.
+                    <p className="text-muted">
+                      <time dateTime={post.date}>{formatDate(post.date)}</time>
+                      <span className="mx-2 text-border" aria-hidden="true">/</span>
+                      {post.readingTime} min read
+                    </p>
+                  </div>
+                </div>
+                <CopyLinkButton />
+              </div>
+            </div>
+          </motion.header>
+
+          {/* Body */}
+          <div className="relative mt-12">
+            {showToc && <TocSidebar headings={headings} active={active} />}
+
+            <div className="article-grid">
+              <div>
+                <SeriesNav current={post} />
+                {showToc && headings.length > 0 && <TocMobile headings={headings} />}
+              </div>
+            </div>
+
+            {status === "ready" && (
+              <article className="article-grid article-body">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                  components={mdComponents}
+                >
+                  {content}
+                </ReactMarkdown>
+              </article>
+            )}
+            {status === "loading" && (
+              <div className="article-grid">
+                <ArticleSkeleton />
+              </div>
+            )}
+            {status === "error" && (
+              <div className="article-grid">
+                <div role="alert" className="rounded-xl border border-border bg-surface/50 px-6 py-10 text-center">
+                  <p className="font-heading text-lg text-text">This post didn't load.</p>
+                  <p className="mt-2 text-sm text-muted">Check your connection and try again.</p>
+                  <button
+                    type="button"
+                    onClick={retry}
+                    className="mt-6 rounded-lg border border-border px-4 py-2 text-sm text-text transition-colors hover:border-accent/50 active:scale-[0.98]"
+                  >
+                    Try again
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* After the article */}
+          <footer className="article-grid mt-16">
+            <div>
+              {post.tags.length > 0 && (
+                <ul className="flex flex-wrap gap-2" aria-label="Tags">
+                  {post.tags.map((tag) => (
+                    <li key={tag}>
+                      <Link
+                        to={`/blog?tag=${encodeURIComponent(tag)}`}
+                        className="inline-block rounded-md border border-border px-2.5 py-1 font-mono text-xs text-muted transition-colors hover:border-accent/50 hover:text-text"
+                      >
+                        #{tag}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="mt-12 flex items-start gap-5 rounded-xl border border-border bg-surface/40 p-6">
+                <img
+                  src="/images/Profile2.1.webp"
+                  alt=""
+                  loading="lazy"
+                  className="h-14 w-14 shrink-0 rounded-full border border-border bg-surface object-cover object-top"
+                />
+                <div>
+                  <p className="text-sm text-muted">Written by</p>
+                  <Link to="/" className="font-heading text-lg font-semibold text-text transition-colors hover:text-accent">
+                    {site.author}
+                  </Link>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">
+                    Software developer working on game engines, graphics programming,
+                    and systems. I write about what I learn shipping them.
                   </p>
                 </div>
-
-                {/* Previous / next */}
-                <nav aria-label="More posts" className="mt-8 grid gap-6 sm:grid-cols-2">
-                  <NeighborLink post={older} direction="prev" />
-                  <NeighborLink post={newer} direction="next" />
-                </nav>
-
-                <RelatedPosts current={post} />
               </div>
 
-              {showToc && <TocSidebar headings={headings} active={active} />}
+              <nav aria-label="More posts" className="mt-8 grid gap-4 sm:grid-cols-2">
+                <NeighborLink post={older} direction="prev" />
+                <NeighborLink post={newer} direction="next" />
+              </nav>
+
+              <RelatedPosts current={post} />
             </div>
-          </motion.div>
+          </footer>
         </main>
       </div>
     </>

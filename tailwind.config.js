@@ -16,6 +16,7 @@ export default {
         heading: ['"Space Grotesk"', "sans-serif"],
         body: ['"Inter"', "sans-serif"],
         mono: ['"JetBrains Mono"', "monospace"],
+        serif: ['"Source Serif 4"', "Georgia", "serif"],
       },
     },
   },
