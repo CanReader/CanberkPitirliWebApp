@@ -11,6 +11,7 @@ import { KineticText, ReadCheck, ProgressRing, AnimatedNumber } from "../compone
 import { useReadPosts, useReadingProgress, STARTED_AT } from "../lib/readPosts";
 import { prefetchPost } from "../lib/postContent";
 import NotFound from "./NotFound";
+import Reactions from "../components/Reactions";
 import { SeriesSteps } from "../components/Achievement";
 
 // A series as a course outline: its own posts first, then each sub-series as
@@ -253,6 +254,10 @@ export default function SeriesPage() {
             {(node.children ?? []).map((child) => (
               <SubSeries key={child.id} node={child} depth={0} />
             ))}
+          </div>
+
+          <div className="mt-16">
+            <Reactions key={`series:${node.id}`} target={`series:${node.id}`} prompt="How's this series?" />
           </div>
 
           {siblings.length > 1 && (

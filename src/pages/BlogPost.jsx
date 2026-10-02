@@ -36,6 +36,7 @@ import ScrollProgress from "../components/ScrollProgress";
 import Seo from "../components/Seo";
 import BackToTop from "../components/BackToTop";
 import { FinishCard } from "../components/Achievement";
+import Reactions from "../components/Reactions";
 import Reveal, { EASE_OUT, staggerParent, fadeUpChild } from "../components/Reveal";
 import { KineticText, Tilt, WipeReveal, ReadCheck, ProgressRing, LiveRing } from "../components/BlogMotion";
 import {
@@ -956,6 +957,7 @@ export default function BlogPost() {
                   )
                 )}
               </AnimatePresence>
+              <Reactions key={`post:${slug}`} target={`post:${slug}`} prompt="How was this post?" />
               <NextInSeries current={post} />
               {post.tags.length > 0 && (
                 <Reveal as="ul" className="flex flex-wrap gap-2" aria-label="Tags">
