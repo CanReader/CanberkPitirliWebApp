@@ -1,64 +1,88 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useScroll, useMotionValueEvent } from "framer-motion";
 
-// Which posts this reader has finished, kept in their own browser only
-// ({ slug: ISO date }). Storage can be unavailable (private mode, blocked
-// site data), so every access is guarded and the blog works without it.
-const KEY = "blog:read";
-const EVENT = "blog-read-change";
+// Reading state, kept in the reader's own browser only. Two small stores:
+//   blog:read      { slug: ISO date }   posts the reader finished
+//   blog:progress  { slug: 0..1 }       how far into an unfinished post they got
+// Storage can be unavailable (private mode, blocked site data), so every
+// access is guarded and the blog works without it.
 
-let cache = null;
+function createStore(key) {
+  const event = `${key}-change`;
+  let cache = null;
 
-function load() {
-  if (cache) return cache;
-  try {
-    cache = JSON.parse(localStorage.getItem(KEY) || "{}") || {};
-  } catch {
-    cache = {};
-  }
-  return cache;
+  const load = () => {
+    if (cache) return cache;
+    try {
+      cache = JSON.parse(localStorage.getItem(key) || "{}") || {};
+    } catch {
+      cache = {};
+    }
+    return cache;
+  };
+
+  const save = (next) => {
+    cache = next;
+    try {
+      localStorage.setItem(key, JSON.stringify(next));
+    } catch {
+      // Not persisted, but this page view still reflects it.
+    }
+    window.dispatchEvent(new Event(event));
+  };
+
+  const subscribe = (callback) => {
+    const onStorage = (e) => {
+      if (e.key === key) {
+        cache = null; // another tab changed it
+        callback();
+      }
+    };
+    window.addEventListener(event, callback);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(event, callback);
+      window.removeEventListener("storage", onStorage);
+    };
+  };
+
+  const use = () => useSyncExternalStore(subscribe, load, () => ({}));
+  return { load, save, use };
 }
 
-function save(next) {
-  cache = next;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    // Not persisted, but this page view still reflects it.
-  }
-  window.dispatchEvent(new Event(EVENT));
-}
+const readStore = createStore("blog:read");
+const progressStore = createStore("blog:progress");
+
+// A post counts as started once the reader is this far into it.
+export const STARTED_AT = 0.1;
 
 export function markRead(slug) {
-  const current = load();
-  if (current[slug]) return;
-  save({ ...current, [slug]: new Date().toISOString() });
+  const read = readStore.load();
+  if (!read[slug]) readStore.save({ ...read, [slug]: new Date().toISOString() });
+  // Finished posts aren't "unfinished" anymore.
+  const { [slug]: _, ...rest } = progressStore.load();
+  if (_ !== undefined) progressStore.save(rest);
 }
 
 export function markUnread(slug) {
-  const { [slug]: _, ...rest } = load();
-  save(rest);
+  const { [slug]: _, ...rest } = readStore.load();
+  readStore.save(rest);
 }
 
-function subscribe(callback) {
-  const onStorage = (e) => {
-    if (e.key === KEY) {
-      cache = null; // another tab changed it
-      callback();
-    }
-  };
-  window.addEventListener(EVENT, callback);
-  window.addEventListener("storage", onStorage);
-  return () => {
-    window.removeEventListener(EVENT, callback);
-    window.removeEventListener("storage", onStorage);
-  };
+function saveProgress(slug, value) {
+  // Tracking stops when a post is finished, and stopping flushes one last
+  // time; that must not put a finished post back into "unfinished".
+  if (readStore.load()[slug]) return;
+  const progress = progressStore.load();
+  if ((progress[slug] ?? 0) >= value) return;
+  progressStore.save({ ...progress, [slug]: value });
 }
 
-// { slug: ISO date } for every finished post. Re-renders on changes from this
-// tab or any other.
-export function useReadPosts() {
-  return useSyncExternalStore(subscribe, load, () => ({}));
-}
+// { slug: ISO date } for every finished post.
+export const useReadPosts = readStore.use;
+
+// { slug: 0..1 } for every started, unfinished post.
+export const useReadingProgress = progressStore.use;
 
 // Marks `slug` read once the reader reaches `endRef` (the end of the article)
 // after spending a fair share of the estimated reading time on the page:
@@ -96,4 +120,60 @@ export function useFinishTracking(slug, endRef, readingTime, enabled) {
     }
     return stop;
   }, [slug, endRef, readingTime, enabled]);
+}
+
+// How far through the article the viewport is: 0 with the article's top at
+// the top of the screen, 1 with its end at the bottom.
+export function articleProgress(el) {
+  const rect = el.getBoundingClientRect();
+  const span = rect.height - window.innerHeight;
+  if (span <= 0) return rect.top <= 0 ? 1 : 0;
+  return Math.min(1, Math.max(0, -rect.top / span));
+}
+
+// Scrolls so the reader lands where `progress` left them.
+export function scrollToProgress(el, progress, behavior = "smooth") {
+  const rect = el.getBoundingClientRect();
+  const span = Math.max(0, rect.height - window.innerHeight);
+  window.scrollTo({ top: window.scrollY + rect.top + span * progress, behavior });
+}
+
+// Remembers the furthest point reached in an unfinished post. Scroll is read
+// through a motion value (no React re-renders), and storage is only written
+// when progress grows by 5 points, plus once more when the reader leaves.
+export function useProgressTracking(slug, articleRef, enabled) {
+  const { scrollY } = useScroll();
+  const best = useRef(0);
+  const saved = useRef(0);
+
+  useEffect(() => {
+    best.current = progressStore.load()[slug] ?? 0;
+    saved.current = best.current;
+  }, [slug]);
+
+  const flush = () => {
+    if (best.current >= STARTED_AT && best.current > saved.current) {
+      saved.current = best.current;
+      saveProgress(slug, Math.round(best.current * 100) / 100);
+    }
+  };
+
+  useMotionValueEvent(scrollY, "change", () => {
+    if (!enabled || !articleRef.current) return;
+    const p = articleProgress(articleRef.current);
+    if (p <= best.current) return;
+    best.current = p;
+    if (best.current - saved.current >= 0.05) flush();
+  });
+
+  useEffect(() => {
+    if (!enabled) return;
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush(); // leaving the post through the app's own links
+    };
+    // flush reads refs only; re-binding per render isn't needed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, enabled]);
 }

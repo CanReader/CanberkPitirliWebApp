@@ -1,7 +1,14 @@
 import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useParams, Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import {
+  motion,
+  AnimatePresence,
+  useMotionValue,
+  useMotionValueEvent,
+  useScroll,
+  useTransform,
+} from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
@@ -29,8 +36,17 @@ import ScrollProgress from "../components/ScrollProgress";
 import Seo from "../components/Seo";
 import BackToTop from "../components/BackToTop";
 import Reveal, { EASE_OUT, staggerParent, fadeUpChild } from "../components/Reveal";
-import { KineticText, Tilt, WipeReveal, ReadCheck } from "../components/BlogMotion";
-import { useReadPosts, useFinishTracking, markUnread } from "../lib/readPosts";
+import { KineticText, Tilt, WipeReveal, ReadCheck, ProgressRing, LiveRing } from "../components/BlogMotion";
+import {
+  useReadPosts,
+  useReadingProgress,
+  useFinishTracking,
+  useProgressTracking,
+  markUnread,
+  scrollToProgress,
+  articleProgress,
+  STARTED_AT,
+} from "../lib/readPosts";
 import NotFound from "./NotFound";
 import { trackEvent } from "../lib/analytics";
 import { usePostContent } from "../lib/postContent";
@@ -629,7 +645,28 @@ export default function BlogPost() {
   if (arrival.current.slug !== slug) arrival.current = { slug, read: Boolean(readAt) };
   const drawCheck = !arrival.current.read;
   const endRef = useRef(null);
-  useFinishTracking(slug, endRef, post?.readingTime ?? 1, Boolean(post) && status === "ready" && !readAt);
+  const articleRef = useRef(null);
+  const tracking = Boolean(post) && status === "ready" && !readAt;
+  useFinishTracking(slug, endRef, post?.readingTime ?? 1, tracking);
+  useProgressTracking(slug, articleRef, tracking);
+  const progress = useReadingProgress()[slug] ?? 0;
+  const unfinished = !readAt && progress >= STARTED_AT;
+
+  // Live position in the article for the end-of-post ring. A motion value, so
+  // scrolling never re-renders the page.
+  const { scrollY } = useScroll();
+  const live = useMotionValue(0);
+  const updateLive = () => articleRef.current && live.set(articleProgress(articleRef.current));
+  useMotionValueEvent(scrollY, "change", updateLive);
+  useEffect(() => {
+    if (status === "ready") updateLive();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, slug]);
+  const liveText = useTransform(live, (v) =>
+    v >= 0.98
+      ? "You're at the end. It checks off after a little more reading time."
+      : `You're ${Math.round(v * 100)}% of the way through.`
+  );
   const headings = useMemo(() => (content ? extractHeadings(content) : []), [content]);
   const active = useActiveHeading(headings);
 
@@ -719,8 +756,31 @@ export default function BlogPost() {
                       <span className="mx-2 text-border" aria-hidden="true">/</span>
                       {post.readingTime} min read
                       <AnimatePresence initial={false}>
+                        {unfinished && (
+                          <motion.span
+                            key="unfinished"
+                            initial={{ opacity: 0, scale: 0.6 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.6 }}
+                            transition={{ type: "spring", stiffness: 420, damping: 26 }}
+                            className="ml-3 inline-flex items-center gap-1.5 align-middle text-zinc-300"
+                            title={`You've read about ${Math.round(progress * 100)}% of this post`}
+                          >
+                            <ProgressRing value={progress} size={14} />
+                            Unfinished
+                            <button
+                              type="button"
+                              disabled={status !== "ready"}
+                              onClick={() => articleRef.current && scrollToProgress(articleRef.current, progress)}
+                              className="ml-1 text-accent underline decoration-accent/40 underline-offset-4 transition-colors hover:decoration-accent disabled:opacity-50"
+                            >
+                              Continue at {Math.round(progress * 100)}%
+                            </button>
+                          </motion.span>
+                        )}
                         {readAt && (
                           <motion.span
+                            key="read"
                             initial={{ opacity: 0, scale: 0.6 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.6 }}
@@ -753,6 +813,7 @@ export default function BlogPost() {
 
             {status === "ready" && (
               <motion.article
+                ref={articleRef}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.4, ease: EASE_OUT }}
@@ -796,8 +857,10 @@ export default function BlogPost() {
           {/* After the article */}
           <footer className="article-grid mt-16">
             <div>
-              <AnimatePresence initial={false}>
-                {readAt && (
+              {/* One card, two states: a ring that fills as you read, then the
+                  check that draws itself once the post counts as finished. */}
+              <AnimatePresence initial={false} mode="popLayout">
+                {readAt ? (
                   <motion.div
                     key="finished"
                     role="status"
@@ -827,6 +890,23 @@ export default function BlogPost() {
                       Mark as unread
                     </button>
                   </motion.div>
+                ) : (
+                  status === "ready" && (
+                    <motion.div
+                      key="unfinished"
+                      initial={{ opacity: 0, y: 14 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.2 } }}
+                      transition={{ type: "spring", stiffness: 260, damping: 24 }}
+                      className="mb-10 flex items-center gap-4 rounded-xl border border-border bg-surface/40 p-5"
+                    >
+                      <LiveRing progress={live} size={36} className="shrink-0 text-zinc-300" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-heading font-semibold text-text">Not finished yet</p>
+                        <motion.p className="text-sm text-muted">{liveText}</motion.p>
+                      </div>
+                    </motion.div>
+                  )
                 )}
               </AnimatePresence>
               {post.tags.length > 0 && (
