@@ -202,9 +202,9 @@ export function ReadCheck({ size = 20, draw = true, className = "" }) {
   );
 }
 
-// Partial ring for an unfinished post: a faint full track with the part
-// already read drawn over it. Same geometry as ReadCheck so the two read as
-// one family (in progress, then done). Fills in from empty on first paint.
+// Ring for an unfinished post: a faint full track with the part already read
+// drawn over it (nothing drawn for a post never opened). Same geometry as
+// ReadCheck so the two read as one family. Fills in from empty on first paint.
 export function ProgressRing({ value, size = 14, className = "" }) {
   const reduce = useReducedMotion();
   return (
@@ -226,7 +226,7 @@ export function ProgressRing({ value, size = 14, className = "" }) {
         cy="12"
         r="9.5"
         initial={reduce ? false : { pathLength: 0 }}
-        animate={{ pathLength: Math.max(0.04, value) }}
+        animate={{ pathLength: value > 0 ? Math.max(0.04, value) : 0, opacity: value > 0 ? 1 : 0 }}
         transition={{ duration: 0.9, ease: EASE_OUT }}
       />
     </svg>

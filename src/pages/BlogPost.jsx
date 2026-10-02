@@ -650,7 +650,7 @@ export default function BlogPost() {
   useFinishTracking(slug, endRef, post?.readingTime ?? 1, tracking);
   useProgressTracking(slug, articleRef, tracking);
   const progress = useReadingProgress()[slug] ?? 0;
-  const unfinished = !readAt && progress >= STARTED_AT;
+  const started = progress >= STARTED_AT;
 
   // Live position in the article for the end-of-post ring. A motion value, so
   // scrolling never re-renders the page.
@@ -756,7 +756,7 @@ export default function BlogPost() {
                       <span className="mx-2 text-border" aria-hidden="true">/</span>
                       {post.readingTime} min read
                       <AnimatePresence initial={false}>
-                        {unfinished && (
+                        {!readAt && (
                           <motion.span
                             key="unfinished"
                             initial={{ opacity: 0, scale: 0.6 }}
@@ -764,10 +764,15 @@ export default function BlogPost() {
                             exit={{ opacity: 0, scale: 0.6 }}
                             transition={{ type: "spring", stiffness: 420, damping: 26 }}
                             className="ml-3 inline-flex items-center gap-1.5 align-middle text-zinc-300"
-                            title={`You've read about ${Math.round(progress * 100)}% of this post`}
+                            title={
+                              started
+                                ? `You've read about ${Math.round(progress * 100)}% of this post`
+                                : "You haven't finished this post yet"
+                            }
                           >
-                            <ProgressRing value={progress} size={14} />
+                            <ProgressRing value={started ? progress : 0} size={14} />
                             Unfinished
+                            {started && (
                             <button
                               type="button"
                               disabled={status !== "ready"}
@@ -776,6 +781,7 @@ export default function BlogPost() {
                             >
                               Continue at {Math.round(progress * 100)}%
                             </button>
+                            )}
                           </motion.span>
                         )}
                         {readAt && (

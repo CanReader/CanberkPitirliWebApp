@@ -96,7 +96,7 @@ function PostLink({ post, children }) {
 function Meta({ post, className = "" }) {
   const read = Boolean(useReadPosts()[post.slug]);
   const progress = useReadingProgress()[post.slug] ?? 0;
-  const unfinished = !read && progress >= STARTED_AT;
+  const started = progress >= STARTED_AT;
   return (
     <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-xs ${className}`}>
       <Link
@@ -115,12 +115,16 @@ function Meta({ post, className = "" }) {
           Read
         </span>
       )}
-      {unfinished && (
+      {!read && (
         <span
           className="inline-flex items-center gap-1 text-zinc-300"
-          title={`You've read about ${Math.round(progress * 100)}% of this post`}
+          title={
+            started
+              ? `You've read about ${Math.round(progress * 100)}% of this post`
+              : "You haven't read this post yet"
+          }
         >
-          <ProgressRing value={progress} size={13} />
+          <ProgressRing value={started ? progress : 0} size={13} />
           Unfinished
         </span>
       )}
@@ -352,7 +356,7 @@ function ReadingCount() {
             <p className="flex items-center gap-2">
               <ProgressRing value={0.5} size={15} className="text-zinc-300" />
               <span>
-                <AnimatedNumber value={started} className="text-text" /> unfinished
+                <AnimatedNumber value={started} className="text-text" /> in progress
               </span>
             </p>
           )}
