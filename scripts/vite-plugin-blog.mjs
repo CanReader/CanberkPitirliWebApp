@@ -12,6 +12,8 @@
 // shipped. In dev, adding or editing a post file reloads the page.
 import { join } from "node:path";
 import { loadPosts, plainText, POSTS_DIR } from "./lib/posts.mjs";
+// Series are defined in this file; a mistake there should fail loudly.
+const TAXONOMY = new URL("../src/data/blogTaxonomy.js", import.meta.url).pathname;
 
 const INDEX = "virtual:blog-index";
 const CONTENT = "virtual:blog-content";
@@ -32,7 +34,7 @@ export default function blogPlugin() {
       return isOurs(id) ? resolved(id) : null;
     },
 
-    load(id) {
+    async load(id) {
       if (!id.startsWith("\0virtual:blog-")) return null;
       const name = id.slice(1);
       const posts = loadPosts();
@@ -43,6 +45,11 @@ export default function blogPlugin() {
       }
 
       if (name === INDEX) {
+        // Cache-busted import: a plain one would keep validating the series
+        // tree as it was when the dev server started.
+        const { validateSeries } = await import(`${TAXONOMY}?t=${Date.now()}`);
+        const problems = validateSeries(posts.map((p) => p.slug));
+        if (problems.length) this.error(`Series definition problems:\n  ${problems.join("\n  ")}`);
         const index = posts.map(({ content, ...meta }) => meta);
         return `export const postIndex = ${JSON.stringify(index)};`;
       }
@@ -68,7 +75,8 @@ export default function blogPlugin() {
       server = s;
       server.watcher.add(POSTS_DIR);
       const onChange = (file) => {
-        if (!file.startsWith(POSTS_DIR) || !file.endsWith(".md")) return;
+        const isPost = file.startsWith(POSTS_DIR) && file.endsWith(".md");
+        if (!isPost && file !== TAXONOMY) return;
         for (const mod of server.moduleGraph.idToModuleMap.values()) {
           if (mod.id?.startsWith("\0virtual:blog-")) server.moduleGraph.invalidateModule(mod);
         }

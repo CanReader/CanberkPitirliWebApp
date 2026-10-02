@@ -8,6 +8,7 @@ import "./index.css";
 
 const BlogList = lazy(() => import("./pages/BlogList"));
 const BlogPost = lazy(() => import("./pages/BlogPost"));
+const SeriesPage = lazy(() => import("./pages/SeriesPage"));
 const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -22,6 +23,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/" element={<App />} />
             <Route path="/blog" element={<BlogList />} />
             <Route path="/blog/topic/:topic" element={<BlogList />} />
+            <Route path="/blog/series/:id" element={<SeriesPage />} />
             <Route path="/blog/:slug" element={<BlogPost />} />
             <Route path="/projects/:slug" element={<ProjectDetail />} />
             <Route path="*" element={<NotFound />} />
