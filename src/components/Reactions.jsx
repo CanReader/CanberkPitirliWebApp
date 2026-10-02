@@ -4,7 +4,8 @@ import { AnimatedNumber } from "./BlogMotion";
 import { Burst } from "./Achievement";
 
 // Emoji reactions under posts and series. The emoji are Google's Noto
-// Animated Emoji (CC BY 4.0), self-hosted in public/emoji: a static SVG at
+// Animated Emoji (CC BY 4.0, credited in the site footer), self-hosted in
+// public/emoji: a static SVG at
 // rest, the Lottie animation while hovered. Counts live in the site's
 // database behind public/api/reactions.php; in dev a stand-in serves the same
 // API (scripts/vite-plugin-reactions-dev.mjs).
@@ -236,18 +237,6 @@ export default function Reactions({ target, prompt }) {
       <p className="mt-4 min-h-[1.25rem] text-xs text-muted" aria-live="polite">
         {notice ||
           (status === "unavailable" ? "Reactions aren't available right now." : null)}
-      </p>
-      <p className="text-[11px] text-muted/70">
-        Animated emoji:{" "}
-        <a
-          href="https://googlefonts.github.io/noto-emoji-animation/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline decoration-muted/40 underline-offset-2 hover:text-muted"
-        >
-          Noto by Google
-        </a>
-        , CC BY 4.0
       </p>
     </section>
   );
