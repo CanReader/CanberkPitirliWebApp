@@ -201,3 +201,57 @@ export function ReadCheck({ size = 20, draw = true, className = "" }) {
     </svg>
   );
 }
+
+// Ring for an unfinished post: a faint full track with the part already read
+// drawn over it (nothing drawn for a post never opened). Same geometry as
+// ReadCheck so the two read as one family. Fills in from empty on first paint.
+export function ProgressRing({ value, size = 14, className = "" }) {
+  const reduce = useReducedMotion();
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      className={className}
+      style={{ transform: "rotate(-90deg)" }}
+    >
+      <circle cx="12" cy="12" r="9.5" opacity="0.25" />
+      <motion.circle
+        cx="12"
+        cy="12"
+        r="9.5"
+        initial={reduce ? false : { pathLength: 0 }}
+        animate={{ pathLength: value > 0 ? Math.max(0.04, value) : 0, opacity: value > 0 ? 1 : 0 }}
+        transition={{ duration: 0.9, ease: EASE_OUT }}
+      />
+    </svg>
+  );
+}
+
+// ProgressRing driven by a live motion value (0..1), e.g. scroll position.
+// Smoothed with a spring; updates never re-render React.
+export function LiveRing({ progress, size = 36, className = "" }) {
+  const smooth = useSpring(progress, { stiffness: 140, damping: 24 });
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      className={className}
+      style={{ transform: "rotate(-90deg)" }}
+    >
+      <circle cx="12" cy="12" r="10" opacity="0.2" />
+      <motion.circle cx="12" cy="12" r="10" style={{ pathLength: smooth }} />
+    </svg>
+  );
+}

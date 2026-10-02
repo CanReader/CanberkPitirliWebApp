@@ -14,8 +14,8 @@ import ScrollProgress from "../components/ScrollProgress";
 import Seo from "../components/Seo";
 import BackToTop from "../components/BackToTop";
 import Reveal, { EASE_OUT, staggerParent, fadeUpChild } from "../components/Reveal";
-import { KineticText, Tilt, AnimatedNumber, DrawLine, useParallax, ReadCheck } from "../components/BlogMotion";
-import { useReadPosts } from "../lib/readPosts";
+import { KineticText, Tilt, AnimatedNumber, DrawLine, useParallax, ReadCheck, ProgressRing } from "../components/BlogMotion";
+import { useReadPosts, useReadingProgress, STARTED_AT } from "../lib/readPosts";
 import NotFound from "./NotFound";
 import usePrefersReducedMotion from "../lib/usePrefersReducedMotion";
 import {
@@ -95,6 +95,8 @@ function PostLink({ post, children }) {
 
 function Meta({ post, className = "" }) {
   const read = Boolean(useReadPosts()[post.slug]);
+  const progress = useReadingProgress()[post.slug] ?? 0;
+  const started = progress >= STARTED_AT;
   return (
     <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-xs ${className}`}>
       <Link
@@ -111,6 +113,19 @@ function Meta({ post, className = "" }) {
         <span className="inline-flex items-center gap-1 text-accent" title="You've read this post">
           <ReadCheck size={13} draw={false} />
           Read
+        </span>
+      )}
+      {!read && (
+        <span
+          className="inline-flex items-center gap-1 text-zinc-300"
+          title={
+            started
+              ? `You've read about ${Math.round(progress * 100)}% of this post`
+              : "You haven't read this post yet"
+          }
+        >
+          <ProgressRing value={started ? progress : 0} size={13} />
+          Unfinished
         </span>
       )}
     </div>
@@ -315,21 +330,37 @@ function TopicLink({ to, label, count, active }) {
 // "You've read 5 of 33": only shown once the reader has finished something.
 function ReadingCount() {
   const readPosts = useReadPosts();
+  const progress = useReadingProgress();
   const count = posts.filter((p) => readPosts[p.slug]).length;
+  const started = posts.filter(
+    (p) => !readPosts[p.slug] && (progress[p.slug] ?? 0) >= STARTED_AT
+  ).length;
   return (
     <AnimatePresence>
-      {count > 0 && (
-        <motion.p
+      {(count > 0 || started > 0) && (
+        <motion.div
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0 }}
-          className="mb-6 flex items-center gap-2 px-3 text-sm text-muted"
+          className="mb-6 space-y-1.5 px-3 text-sm text-muted"
         >
-          <ReadCheck size={15} draw={false} className="text-accent" />
-          <span>
-            You've read <AnimatedNumber value={count} className="text-text" /> of {posts.length}
-          </span>
-        </motion.p>
+          {count > 0 && (
+            <p className="flex items-center gap-2">
+              <ReadCheck size={15} draw={false} className="text-accent" />
+              <span>
+                You've read <AnimatedNumber value={count} className="text-text" /> of {posts.length}
+              </span>
+            </p>
+          )}
+          {started > 0 && (
+            <p className="flex items-center gap-2">
+              <ProgressRing value={0.5} size={15} className="text-zinc-300" />
+              <span>
+                <AnimatedNumber value={started} className="text-text" /> in progress
+              </span>
+            </p>
+          )}
+        </motion.div>
       )}
     </AnimatePresence>
   );
