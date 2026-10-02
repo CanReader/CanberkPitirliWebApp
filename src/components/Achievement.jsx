@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { forwardRef, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { Trophy } from "lucide-react";
@@ -143,7 +143,12 @@ function SeriesProgress({ slug, readPosts, celebrate }) {
 const GLOW_OFF = "0 0 0 1px rgba(52,211,153,0), 0 0 48px 6px rgba(52,211,153,0)";
 const GLOW_ON = "0 0 0 1px rgba(52,211,153,0.45), 0 0 48px 6px rgba(52,211,153,0.24)";
 
-export function FinishCard({ slug, readAt, readPosts, celebrate, onUnread, formatDate }) {
+// forwardRef: AnimatePresence's popLayout mode hands its child a ref to
+// measure it during the exit animation.
+export const FinishCard = forwardRef(function FinishCard(
+  { slug, readAt, readPosts, celebrate, onUnread, formatDate },
+  ref
+) {
   const reduce = useReducedMotion();
   const total = posts.length;
   const readCount = posts.filter((p) => readPosts[p.slug]).length;
@@ -151,6 +156,7 @@ export function FinishCard({ slug, readAt, readPosts, celebrate, onUnread, forma
 
   return (
     <motion.div
+      ref={ref}
       key="finished"
       role="status"
       initial={celebrate ? { opacity: 0, y: 18, scale: 0.94 } : { opacity: 0, y: 10 }}
@@ -209,4 +215,4 @@ export function FinishCard({ slug, readAt, readPosts, celebrate, onUnread, forma
       <SeriesProgress slug={slug} readPosts={readPosts} celebrate={celebrate} />
     </motion.div>
   );
-}
+});
