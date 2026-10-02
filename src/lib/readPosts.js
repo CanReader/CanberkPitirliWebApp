@@ -78,38 +78,77 @@ function saveProgress(slug, value) {
   progressStore.save({ ...progress, [slug]: value });
 }
 
+// The post finished most recently in this tab, so the blog page can replay
+// its check once when the reader heads back there. Session-only.
+const JUST_FINISHED = "blog:just-finished";
+
+function rememberJustFinished(slug) {
+  try {
+    sessionStorage.setItem(JUST_FINISHED, slug);
+  } catch {
+    // Without session storage the blog page just doesn't replay it.
+  }
+}
+
+// Peek, then clear once shown: Strict Mode runs state initializers twice in
+// dev, so reading and clearing in one step would lose the value.
+export function peekJustFinished() {
+  try {
+    return sessionStorage.getItem(JUST_FINISHED);
+  } catch {
+    return null;
+  }
+}
+
+export function clearJustFinished() {
+  try {
+    sessionStorage.removeItem(JUST_FINISHED);
+  } catch {
+    // nothing to clear
+  }
+}
+
 // { slug: ISO date } for every finished post.
 export const useReadPosts = readStore.use;
 
 // { slug: 0..1 } for every started, unfinished post.
 export const useReadingProgress = progressStore.use;
 
-// Marks `slug` read once the reader reaches `endRef` (the end of the article)
-// after spending a fair share of the estimated reading time on the page:
-// a quarter of it, capped at a minute. Jumping straight to the bottom
-// doesn't count. Time only accrues while the tab is visible.
-export function useFinishTracking(slug, endRef, readingTime, enabled) {
+// Reaching the end of the article (`endRef`) finishes the post. Two small
+// guards, both invisible to someone who reads down to the end:
+//   - the end has to have been off-screen at least once this visit, so
+//     starting there (just after "Mark as unread", or a reload that restores
+//     the scroll position) doesn't immediately check it off again;
+//   - a few seconds on the page, so a jump straight to the bottom on arrival
+//     doesn't count.
+// Read marks are personal, so there's nothing to defend beyond that.
+const MIN_DWELL_MS = 3000;
+
+export function useFinishTracking(slug, endRef, enabled) {
   const elapsed = useRef(0);
 
   useEffect(() => {
     if (!enabled || !endRef.current) return;
     elapsed.current = 0;
-    const needed = Math.min(readingTime * 60 * 0.25, 60) * 1000;
+    const needed = MIN_DWELL_MS;
     let atEnd = false;
+    let seenAway = false;
     let last = performance.now();
 
     const tick = () => {
       const now = performance.now();
       if (document.visibilityState === "visible") elapsed.current += now - last;
       last = now;
-      if (atEnd && elapsed.current >= needed) {
+      if (atEnd && seenAway && elapsed.current >= needed) {
         markRead(slug);
+        rememberJustFinished(slug);
         stop();
       }
     };
     const timer = setInterval(tick, 1000);
     const observer = new IntersectionObserver(([entry]) => {
       atEnd = entry.isIntersecting;
+      if (!atEnd) seenAway = true;
       tick();
     });
     observer.observe(endRef.current);
@@ -119,7 +158,7 @@ export function useFinishTracking(slug, endRef, readingTime, enabled) {
       observer.disconnect();
     }
     return stop;
-  }, [slug, endRef, readingTime, enabled]);
+  }, [slug, endRef, enabled]);
 }
 
 // How far through the article the viewport is: 0 with the article's top at

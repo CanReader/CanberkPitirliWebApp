@@ -11,6 +11,7 @@ import { KineticText, ReadCheck, ProgressRing, AnimatedNumber } from "../compone
 import { useReadPosts, useReadingProgress, STARTED_AT } from "../lib/readPosts";
 import { prefetchPost } from "../lib/postContent";
 import NotFound from "./NotFound";
+import { SeriesSteps } from "../components/Achievement";
 
 // A series as a course outline: its own posts first, then each sub-series as
 // a section (nested sub-series nest further), every part showing whether the
@@ -93,12 +94,28 @@ function SubSeries({ node, depth }) {
             {node.title}
           </Link>
         </Heading>
-        <span className="text-sm text-muted">
-          {done > 0 ? `${done} of ${slugs.length} read` : `${slugs.length} ${slugs.length === 1 ? "part" : "parts"}`}
-          <span className="mx-2 text-border" aria-hidden="true">/</span>
+        <span className="flex items-center gap-3 text-sm text-muted">
+          {done === slugs.length ? (
+            <motion.span
+              initial={{ opacity: 0, scale: 0.6 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ type: "spring", stiffness: 420, damping: 18, delay: 0.3 }}
+              className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent"
+            >
+              <ReadCheck size={13} draw={false} />
+              Completed
+            </motion.span>
+          ) : (
+            <span>
+              {done > 0 ? `${done} of ${slugs.length} read` : `${slugs.length} ${slugs.length === 1 ? "part" : "parts"}`}
+            </span>
+          )}
+          <span className="text-border" aria-hidden="true">/</span>
           {minutes(slugs)} min
         </span>
       </Reveal>
+      {done > 0 && <SeriesSteps slugs={slugs} readPosts={readPosts} onView className="mb-4 max-w-xs" />}
       {node.description && (
         <p className="mb-3 max-w-[60ch] text-sm leading-relaxed text-muted">{node.description}</p>
       )}
