@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Link,
@@ -15,7 +15,7 @@ import Seo from "../components/Seo";
 import BackToTop from "../components/BackToTop";
 import Reveal, { EASE_OUT, staggerParent, fadeUpChild } from "../components/Reveal";
 import { KineticText, Tilt, AnimatedNumber, DrawLine, useParallax, ReadCheck, ProgressRing } from "../components/BlogMotion";
-import { useReadPosts, useReadingProgress, STARTED_AT } from "../lib/readPosts";
+import { useReadPosts, useReadingProgress, STARTED_AT, peekJustFinished, clearJustFinished } from "../lib/readPosts";
 import NotFound from "./NotFound";
 import usePrefersReducedMotion from "../lib/usePrefersReducedMotion";
 import {
@@ -93,8 +93,13 @@ function PostLink({ post, children }) {
   );
 }
 
+// The post the reader just finished (coming back from it), so its check can
+// replay once here.
+const JustFinished = createContext(null);
+
 function Meta({ post, className = "" }) {
   const read = Boolean(useReadPosts()[post.slug]);
+  const replay = useContext(JustFinished) === post.slug;
   const progress = useReadingProgress()[post.slug] ?? 0;
   const started = progress >= STARTED_AT;
   return (
@@ -110,10 +115,16 @@ function Meta({ post, className = "" }) {
       </time>
       <span className="text-muted">{post.readingTime} min read</span>
       {read && (
-        <span className="inline-flex items-center gap-1 text-accent" title="You've read this post">
-          <ReadCheck size={13} draw={false} />
+        <motion.span
+          className="inline-flex items-center gap-1 text-accent"
+          title="You've read this post"
+          initial={replay ? { opacity: 0, x: -6 } : false}
+          {...(replay ? { whileInView: { opacity: 1, x: 0 }, viewport: { once: true } } : { animate: { opacity: 1, x: 0 } })}
+          transition={{ duration: 0.5, delay: 0.5, ease: EASE }}
+        >
+          <ReadCheck size={13} draw={replay} onView />
           Read
-        </span>
+        </motion.span>
       )}
       {!read && (
         <span
@@ -220,6 +231,7 @@ function Lead({ lead, latest }) {
 // ── Archive row ─────────────────────────────────────────────────────────────
 
 function PostRow({ post, query, body, activeTag, onTag, hovered, onHover, delay = 0 }) {
+  const replay = useContext(JustFinished) === post.slug;
   const hasCover = Boolean(coverImage(post));
   const snippet = query ? searchSnippet(post, query, body) : null;
   const terms = query ? query.toLowerCase().split(/\s+/).filter(Boolean) : [];
@@ -233,6 +245,17 @@ function PostRow({ post, query, body, activeTag, onTag, hovered, onHover, delay 
         hasCover ? "sm:grid-cols-[minmax(0,1fr)_200px]" : ""
       }`}
     >
+      {/* The post the reader just finished: a soft green wash that fades. */}
+      {replay && (
+        <motion.span
+          aria-hidden="true"
+          className="pointer-events-none absolute -inset-x-4 inset-y-1.5 rounded-xl bg-accent/10"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: [0, 1, 0] }}
+          viewport={{ once: true, amount: 0.6 }}
+          transition={{ duration: 2.4, delay: 0.5, times: [0, 0.2, 1] }}
+        />
+      )}
       {/* One highlight shared by all rows; it glides to whichever row the
           pointer is on. */}
       {hovered && (
@@ -488,6 +511,10 @@ export default function BlogList() {
   const [expandedKey, setExpandedKey] = useState(null);
   const [searchTouched, setSearchTouched] = useState(false);
   const [hoveredSlug, setHoveredSlug] = useState(null);
+  const [justFinished] = useState(peekJustFinished);
+  useEffect(() => {
+    if (justFinished) clearJustFinished();
+  }, [justFinished]);
 
   const topic = topicSlug ? topics.find((t) => t.slug === topicSlug) : null;
   const q = query.trim();
@@ -585,6 +612,7 @@ export default function BlogList() {
       />
       <ScrollProgress />
       <BackToTop />
+      <JustFinished.Provider value={justFinished}>
       <div className="min-h-[100dvh] bg-bg">
         <Navbar />
         <main id="main" className="mx-auto max-w-6xl px-4 pb-24 pt-28 sm:px-5 md:px-8">
@@ -862,6 +890,7 @@ export default function BlogList() {
           </div>
         </main>
       </div>
+      </JustFinished.Provider>
     </>
   );
 }
