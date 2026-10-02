@@ -23,7 +23,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
-import { posts, topicPath, seriesFor } from "../data/posts";
+import { posts, topicPath, seriesForPost, nextInSeries, seriesUrl } from "../data/posts";
 import { site } from "../data/siteConfig";
 import {
   formatDate,
@@ -49,7 +49,7 @@ import {
 } from "../lib/readPosts";
 import NotFound from "./NotFound";
 import { trackEvent } from "../lib/analytics";
-import { usePostContent } from "../lib/postContent";
+import { usePostContent, prefetchPost } from "../lib/postContent";
 
 // Syntax highlighting is heavy; load it only for posts that contain code.
 const CodeBlock = lazy(() => import("../components/CodeBlock"));
@@ -464,30 +464,81 @@ function TocMobile({ headings }) {
 
 /* ── Series, prev / next, related ── */
 function SeriesNav({ current }) {
-  const s = seriesFor(current.slug);
-  if (!s) return null;
-  const parts = s.slugs.map((slug) => posts.find((p) => p.slug === slug)).filter(Boolean);
-  const index = parts.findIndex((p) => p.slug === current.slug);
+  const readPosts = useReadPosts();
+  const at = seriesForPost(current.slug);
+  if (!at) return null;
+  const { leaf, path, index } = at;
+  const parts = leaf.slugs.map((slug) => posts.find((p) => p.slug === slug)).filter(Boolean);
   return (
-    <Reveal as="nav" aria-label={`${s.title} series`} className="mb-10 rounded-xl border border-border bg-surface/40 p-5 font-sans">
-      <p className="text-sm text-muted">
-        Part {index + 1} of {parts.length} in{" "}
-        <span className="font-medium text-text">{s.title}</span>
-      </p>
+    <Reveal as="nav" aria-label={`${leaf.title} series`} className="mb-10 rounded-xl border border-border bg-surface/40 p-5 font-sans">
+      {/* Where this sub-series sits: C++ Tutorials / C++ Basics */}
+      {path.length > 1 && (
+        <p className="mb-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
+          {path.slice(0, -1).map((n) => (
+            <span key={n.id} className="contents">
+              <Link to={seriesUrl(n.id)} className="transition-colors hover:text-accent">{n.title}</Link>
+              <span aria-hidden="true" className="text-border">/</span>
+            </span>
+          ))}
+        </p>
+      )}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="text-sm text-muted">
+          Part {index + 1} of {parts.length} in{" "}
+          <Link to={seriesUrl(leaf.id)} className="font-medium text-text transition-colors hover:text-accent">
+            {leaf.title}
+          </Link>
+        </p>
+        <Link to={seriesUrl(path[0].id)} className="text-xs text-accent hover:underline underline-offset-4">
+          {path.length > 1 ? `All of ${path[0].title}` : "Series outline"}
+        </Link>
+      </div>
       <ol className="mt-3 space-y-1.5">
         {parts.map((p, i) => (
-          <li key={p.slug} className="flex gap-3 text-sm leading-snug">
+          <li key={p.slug} className="flex items-start gap-3 text-sm leading-snug">
             <span className="w-4 shrink-0 font-mono text-muted">{i + 1}</span>
             {p.slug === current.slug ? (
-              <span aria-current="page" className="font-medium text-accent">{p.title}</span>
+              <span aria-current="page" className="flex-1 font-medium text-accent">{p.title}</span>
             ) : (
-              <Link to={`/blog/${p.slug}`} className="text-zinc-300 transition-colors hover:text-accent">
+              <Link to={`/blog/${p.slug}`} className="flex-1 text-zinc-300 transition-colors hover:text-accent">
                 {p.title}
               </Link>
+            )}
+            {readPosts[p.slug] && (
+              <ReadCheck size={14} draw={false} className="mt-px shrink-0 text-accent" />
             )}
           </li>
         ))}
       </ol>
+    </Reveal>
+  );
+}
+
+// "Next in C++ Basics" at the end of a post, crossing into the next
+// sub-series (and saying so) when this one ends.
+function NextInSeries({ current }) {
+  const nextSlug = nextInSeries(current.slug);
+  const next = nextSlug && posts.find((p) => p.slug === nextSlug);
+  if (!next) return null;
+  const here = seriesForPost(current.slug);
+  const there = seriesForPost(next.slug);
+  const label =
+    there.leaf.id === here.leaf.id ? `Next in ${here.leaf.title}` : `Up next: ${there.leaf.title}`;
+  return (
+    <Reveal className="mb-10">
+      <Link
+        to={`/blog/${next.slug}`}
+        onMouseEnter={() => prefetchPost(next.slug)}
+        className="group flex items-center justify-between gap-6 rounded-xl border border-border p-5 transition-[border-color,transform] duration-300 hover:-translate-y-0.5 hover:border-accent/40"
+      >
+        <span className="min-w-0">
+          <span className="mb-1 block text-xs text-muted">{label}</span>
+          <span className="font-heading text-lg font-semibold leading-snug text-text transition-colors group-hover:text-accent">
+            {next.title}
+          </span>
+        </span>
+        <ArrowRight size={18} className="shrink-0 text-muted transition-transform duration-300 group-hover:translate-x-1 group-hover:text-accent" />
+      </Link>
     </Reveal>
   );
 }
@@ -915,6 +966,7 @@ export default function BlogPost() {
                   )
                 )}
               </AnimatePresence>
+              <NextInSeries current={post} />
               {post.tags.length > 0 && (
                 <Reveal as="ul" className="flex flex-wrap gap-2" aria-label="Tags">
                   {post.tags.map((tag) => (

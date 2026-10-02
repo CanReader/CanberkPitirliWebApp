@@ -8,7 +8,7 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { ArrowLeft, ArrowUpRight, Search, X } from "lucide-react";
-import { posts, topics, topicPath, series } from "../data/posts";
+import { posts, topics, topicPath, series, seriesSlugs, seriesUrl } from "../data/posts";
 import Navbar from "../components/Navbar";
 import ScrollProgress from "../components/ScrollProgress";
 import Seo from "../components/Seo";
@@ -327,6 +327,53 @@ function TopicLink({ to, label, count, active }) {
   );
 }
 
+// A top-level series in the sidebar, with its sub-series listed underneath
+// (one level; the series page shows the full outline). The count shows
+// reading progress once the reader has finished a part.
+const SUBSERIES_SHOWN = 4;
+
+function SeriesItem({ node }) {
+  const readPosts = useReadPosts();
+  const slugs = seriesSlugs(node);
+  const done = slugs.filter((x) => readPosts[x]).length;
+  const children = node.children ?? [];
+  return (
+    <li>
+      <Link
+        to={seriesUrl(node.id)}
+        className="flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm text-muted transition-colors hover:bg-surface/60 hover:text-text"
+      >
+        <span>{node.title}</span>
+        <span className={`shrink-0 font-mono text-xs ${done ? "text-accent" : ""}`}>
+          {done ? `${done}/${slugs.length}` : `${slugs.length} parts`}
+        </span>
+      </Link>
+      {children.length > 0 && (
+        <ul className="mb-1 ml-4 border-l border-border pl-2">
+          {children.slice(0, SUBSERIES_SHOWN).map((c) => (
+            <li key={c.id}>
+              <Link
+                to={seriesUrl(c.id)}
+                className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-[13px] text-muted transition-colors hover:bg-surface/60 hover:text-text"
+              >
+                <span>{c.title}</span>
+                <span className="shrink-0 font-mono text-[11px]">{seriesSlugs(c).length}</span>
+              </Link>
+            </li>
+          ))}
+          {children.length > SUBSERIES_SHOWN && (
+            <li>
+              <Link to={seriesUrl(node.id)} className="block px-2 py-1.5 text-[13px] text-accent hover:underline underline-offset-4">
+                {children.length - SUBSERIES_SHOWN} more sections
+              </Link>
+            </li>
+          )}
+        </ul>
+      )}
+    </li>
+  );
+}
+
 // "You've read 5 of 33": only shown once the reader has finished something.
 function ReadingCount() {
   const readPosts = useReadPosts();
@@ -394,15 +441,7 @@ function Sidebar({ topic, tag, onTag }) {
           <h2 className="mb-2 px-3 text-sm font-medium text-text">Series</h2>
           <ul className="space-y-0.5">
             {series.map((s) => (
-              <li key={s.id}>
-                <Link
-                  to={`/blog/${s.slugs[0]}`}
-                  className="flex items-center justify-between rounded-md px-3 py-2 text-sm text-muted transition-colors hover:bg-surface/60 hover:text-text"
-                >
-                  <span>{s.title}</span>
-                  <span className="font-mono text-xs">{s.slugs.length} parts</span>
-                </Link>
-              </li>
+              <SeriesItem key={s.id} node={s} />
             ))}
           </ul>
         </nav>
@@ -650,7 +689,7 @@ export default function BlogList() {
               {/* Topic chips: the sidebar's job on small screens */}
               <nav
                 aria-label="Topics"
-                className="-mx-4 mb-8 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-none lg:hidden"
+                className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-none lg:hidden"
               >
                 {[null, ...topics].map((t) => {
                   const active = (topic?.name ?? null) === (t?.name ?? null);
@@ -680,6 +719,24 @@ export default function BlogList() {
                     </Link>
                   );
                 })}
+              </nav>
+
+              {/* Series, likewise: the sidebar list on small screens */}
+              <nav
+                aria-label="Series"
+                className="-mx-4 mb-8 flex items-center gap-2 overflow-x-auto px-4 pb-1 scrollbar-none lg:hidden"
+              >
+                <span className="shrink-0 text-xs text-muted">Series</span>
+                {series.map((s) => (
+                  <Link
+                    key={s.id}
+                    to={seriesUrl(s.id)}
+                    className="shrink-0 whitespace-nowrap rounded-full border border-border px-3 py-1 text-xs text-muted transition-colors hover:border-accent/40 hover:text-text"
+                  >
+                    {s.title}
+                    <span className="ml-1.5 font-mono text-muted/70">{seriesSlugs(s).length}</span>
+                  </Link>
+                ))}
               </nav>
 
               <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-border pb-5">

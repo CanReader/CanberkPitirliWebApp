@@ -11,13 +11,19 @@
 //   4. Emits dist/getprojects.json, the /getprojects endpoint
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { topics } from "../src/data/blogTaxonomy.js";
+import { topics, allSeries, seriesSlugs, validateSeries } from "../src/data/blogTaxonomy.js";
 import { loadPosts } from "./lib/posts.mjs";
 import { projects } from "../src/data/projects.js";
 import { site } from "../src/data/siteConfig.js";
 import repositories from "../src/data/repositories.json" with { type: "json" };
 
 const posts = loadPosts();
+
+const seriesProblems = validateSeries(posts.map((p) => p.slug));
+if (seriesProblems.length) {
+  console.error(`Series definition problems:\n  ${seriesProblems.join("\n  ")}`);
+  process.exit(1);
+}
 
 const DIST = new URL("../dist", import.meta.url).pathname;
 const template = readFileSync(join(DIST, "index.html"), "utf8");
@@ -122,6 +128,30 @@ for (const topic of topics) {
   });
 }
 
+// ── Series pages ──
+for (const { node, path } of allSeries()) {
+  const url = `${site.url}/blog/series/${node.id}`;
+  const count = seriesSlugs(node).length;
+  const trail = path.length > 1 ? ` (part of ${path[0].title})` : "";
+  writePage(`/blog/series/${node.id}`, {
+    title: `${node.title}${trail} — ${site.author}`,
+    description: node.description ?? `A ${count}-part series by ${site.author}.`,
+    url,
+    image: `${site.url}/og/home.png`,
+    jsonLd: {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: node.title,
+      url,
+      isPartOf: { "@type": "Blog", url: `${site.url}/blog` },
+      hasPart: seriesSlugs(node).map((slug) => ({
+        "@type": "BlogPosting",
+        url: `${site.url}/blog/${slug}`,
+      })),
+    },
+  });
+}
+
 // ── Blog posts ──
 for (const post of posts) {
   const url = `${site.url}/blog/${post.slug}`;
@@ -174,6 +204,11 @@ for (const project of projects) {
 const urls = [
   { loc: `${site.url}/`, lastmod: today, priority: "1.0" },
   { loc: `${site.url}/blog`, lastmod: posts[0]?.date ?? today, priority: "0.8" },
+  ...allSeries().map(({ node }) => ({
+    loc: `${site.url}/blog/series/${node.id}`,
+    lastmod: posts.filter((p) => seriesSlugs(node).includes(p.slug))[0]?.date ?? today,
+    priority: "0.6",
+  })),
   ...topics.map((t) => ({
     loc: `${site.url}/blog/topic/${t.slug}`,
     lastmod: posts.find((p) => p.category === t.name)?.date ?? today,
