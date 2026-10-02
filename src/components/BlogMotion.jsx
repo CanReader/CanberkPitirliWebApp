@@ -32,7 +32,7 @@ export function KineticText({ text, delay = 0, stagger = 0.04, className = "" })
         >
           <motion.span
             className="inline-block will-change-transform"
-            initial={reduce ? { opacity: 0 } : { y: "105%" }}
+            initial={reduce ? { opacity: 0 } : { y: "125%" }}
             animate={reduce ? { opacity: 1 } : { y: "0%" }}
             transition={{ duration: 0.8, delay: delay + i * stagger, ease: EASE_OUT }}
           >
@@ -78,10 +78,11 @@ export function Tilt({ children, max = 6, className = "" }) {
   );
 }
 
-// Counts toward `value` whenever it changes, starting from 0 on first show.
-export function AnimatedNumber({ value, className = "" }) {
+// Counts toward `value` whenever it changes, starting from `from` (0 by
+// default) on first show.
+export function AnimatedNumber({ value, from = 0, className = "" }) {
   const ref = useRef(null);
-  const current = useRef(0);
+  const current = useRef(from);
   const reduce = useReducedMotion();
 
   useEffect(() => {
@@ -105,7 +106,8 @@ export function AnimatedNumber({ value, className = "" }) {
 
   return (
     <span ref={ref} className={`tabular-nums ${className}`}>
-      {value}
+      {/* Start at `from` so a count-up doesn't flash the final value first. */}
+      {from !== 0 && !reduce ? from : value}
     </span>
   );
 }
@@ -167,9 +169,13 @@ export function useParallax(ref, distance = 24) {
 // inside it. With `draw` false it renders already complete (a post read on an
 // earlier visit), so only the moment of finishing animates. A plain circle
 // and a two-segment stroke, nothing an icon set would do differently.
-export function ReadCheck({ size = 20, draw = true, className = "" }) {
+// With `onView`, the draw waits until the mark scrolls into view (a replay
+// further down a list would otherwise finish before anyone sees it).
+export function ReadCheck({ size = 20, draw = true, onView = false, className = "" }) {
   const reduce = useReducedMotion();
   const animateIn = draw && !reduce;
+  const play = (target) =>
+    animateIn && onView ? { whileInView: target, viewport: { once: true } } : { animate: target };
   return (
     <svg
       aria-hidden="true"
@@ -188,14 +194,14 @@ export function ReadCheck({ size = 20, draw = true, className = "" }) {
         cy="12"
         r="10"
         initial={animateIn ? { pathLength: 0, opacity: 0.3 } : false}
-        animate={{ pathLength: 1, opacity: 1 }}
+        {...play({ pathLength: 1, opacity: 1 })}
         transition={{ duration: 0.7, ease: EASE_OUT }}
         style={{ rotate: -90, transformOrigin: "50% 50%" }}
       />
       <motion.path
         d="M7.5 12.5l3 3 6-6.5"
         initial={animateIn ? { pathLength: 0 } : false}
-        animate={{ pathLength: 1 }}
+        {...play({ pathLength: 1 })}
         transition={{ duration: 0.45, delay: animateIn ? 0.55 : 0, ease: EASE_OUT }}
       />
     </svg>

@@ -35,6 +35,8 @@ import Navbar from "../components/Navbar";
 import ScrollProgress from "../components/ScrollProgress";
 import Seo from "../components/Seo";
 import BackToTop from "../components/BackToTop";
+import { FinishCard } from "../components/Achievement";
+import Reactions from "../components/Reactions";
 import Reveal, { EASE_OUT, staggerParent, fadeUpChild } from "../components/Reveal";
 import { KineticText, Tilt, WipeReveal, ReadCheck, ProgressRing, LiveRing } from "../components/BlogMotion";
 import {
@@ -698,7 +700,7 @@ export default function BlogPost() {
   const endRef = useRef(null);
   const articleRef = useRef(null);
   const tracking = Boolean(post) && status === "ready" && !readAt;
-  useFinishTracking(slug, endRef, post?.readingTime ?? 1, tracking);
+  useFinishTracking(slug, endRef, tracking);
   useProgressTracking(slug, articleRef, tracking);
   const progress = useReadingProgress()[slug] ?? 0;
   const started = progress >= STARTED_AT;
@@ -713,11 +715,9 @@ export default function BlogPost() {
     if (status === "ready") updateLive();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, slug]);
-  const liveText = useTransform(live, (v) =>
-    v >= 0.98
-      ? "You're at the end. It checks off after a little more reading time."
-      : `You're ${Math.round(v * 100)}% of the way through.`
-  );
+  // Capped at 99: "not finished" next to "100%" reads like a contradiction in
+  // the split second before the post checks off.
+  const liveText = useTransform(live, (v) => `You're ${Math.min(99, Math.round(v * 100))}% of the way through.`);
   const headings = useMemo(() => (content ? extractHeadings(content) : []), [content]);
   const active = useActiveHeading(headings);
 
@@ -918,35 +918,26 @@ export default function BlogPost() {
                   check that draws itself once the post counts as finished. */}
               <AnimatePresence initial={false} mode="popLayout">
                 {readAt ? (
-                  <motion.div
+                  <FinishCard
                     key="finished"
-                    role="status"
-                    initial={{ opacity: 0, y: 14, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, transition: { duration: 0.2 } }}
-                    transition={{ type: "spring", stiffness: 260, damping: 24 }}
-                    className="mb-10 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-accent/30 bg-accent/[0.06] p-5"
-                  >
-                    <ReadCheck size={36} draw={drawCheck} className="shrink-0 text-accent" />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-heading font-semibold text-text">You finished this post</p>
-                      <p className="text-sm text-muted">
-                        {drawCheck
-                          ? "It now shows as read on the blog page."
-                          : `You read it on ${formatDate(readAt)}.`}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        arrival.current.read = false;
-                        markUnread(slug);
-                      }}
-                      className="rounded-lg px-2 py-1 text-sm text-muted transition-colors hover:bg-white/5 hover:text-text"
-                    >
-                      Mark as unread
-                    </button>
-                  </motion.div>
+                    slug={slug}
+                    readAt={readAt}
+                    readPosts={readPosts}
+                    celebrate={drawCheck}
+                    formatDate={formatDate}
+                    onUnread={() => {
+                      arrival.current.read = false;
+                      markUnread(slug);
+                      // Back to the start: staying at the end would just
+                      // finish it again.
+                      const el = articleRef.current;
+                      if (el) {
+                        const top = el.getBoundingClientRect().top + window.scrollY - 120;
+                        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+                        window.scrollTo({ top: Math.max(0, top), behavior: reduce ? "auto" : "smooth" });
+                      }
+                    }}
+                  />
                 ) : (
                   status === "ready" && (
                     <motion.div
@@ -966,6 +957,7 @@ export default function BlogPost() {
                   )
                 )}
               </AnimatePresence>
+              <Reactions key={`post:${slug}`} target={`post:${slug}`} prompt="How was this post?" />
               <NextInSeries current={post} />
               {post.tags.length > 0 && (
                 <Reveal as="ul" className="flex flex-wrap gap-2" aria-label="Tags">

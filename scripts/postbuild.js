@@ -240,6 +240,18 @@ ${urls
 </urlset>
 `;
 writeFileSync(join(DIST, "sitemap.xml"), sitemap);
+
+// ── api/targets.json ──
+// Every post and series that accepts emoji reactions; the reactions API
+// rejects anything else.
+mkdirSync(join(DIST, "api"), { recursive: true });
+writeFileSync(
+  join(DIST, "api", "targets.json"),
+  JSON.stringify([
+    ...posts.map((p) => `post:${p.slug}`),
+    ...allSeries().map(({ node }) => `series:${node.id}`),
+  ])
+);
 console.log(`  ✓ sitemap.xml (${urls.length} URLs)`);
 
 // ── rss.xml ──

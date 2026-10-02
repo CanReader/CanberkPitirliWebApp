@@ -98,6 +98,19 @@ export default function Footer() {
           <p className="text-zinc-600 text-sm">
             &copy; {new Date().getFullYear()} Canberk Pitirli
           </p>
+          {/* Required by the CC BY 4.0 license of the blog's reaction emoji. */}
+          <p className="mt-1 text-[11px] text-zinc-700">
+            Animated emoji by{" "}
+            <a
+              href="https://googlefonts.github.io/noto-emoji-animation/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-zinc-500"
+            >
+              Google Noto
+            </a>{" "}
+            (CC BY 4.0)
+          </p>
         </motion.div>
       </div>
     </footer>

@@ -1,0 +1,5 @@
+# Database credentials live in config.php (written at deploy time). PHP would
+# execute it rather than show it, but there is no reason to serve it at all.
+<Files "config.php">
+  Require all denied
+</Files>
