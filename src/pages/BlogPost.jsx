@@ -29,7 +29,8 @@ import ScrollProgress from "../components/ScrollProgress";
 import Seo from "../components/Seo";
 import BackToTop from "../components/BackToTop";
 import Reveal, { EASE_OUT, staggerParent, fadeUpChild } from "../components/Reveal";
-import { KineticText, Tilt, WipeReveal } from "../components/BlogMotion";
+import { KineticText, Tilt, WipeReveal, ReadCheck } from "../components/BlogMotion";
+import { useReadPosts, useFinishTracking, markUnread } from "../lib/readPosts";
 import NotFound from "./NotFound";
 import { trackEvent } from "../lib/analytics";
 import { usePostContent } from "../lib/postContent";
@@ -619,6 +620,16 @@ export default function BlogPost() {
   const post = posts.find((p) => p.slug === slug);
 
   const { status, content, retry } = usePostContent(slug);
+
+  // Finished-reading state. The check only draws itself if the post wasn't
+  // already read when this visit started; a returning reader just sees it.
+  const readPosts = useReadPosts();
+  const readAt = readPosts[slug];
+  const arrival = useRef({ slug: null, read: false });
+  if (arrival.current.slug !== slug) arrival.current = { slug, read: Boolean(readAt) };
+  const drawCheck = !arrival.current.read;
+  const endRef = useRef(null);
+  useFinishTracking(slug, endRef, post?.readingTime ?? 1, Boolean(post) && status === "ready" && !readAt);
   const headings = useMemo(() => (content ? extractHeadings(content) : []), [content]);
   const active = useActiveHeading(headings);
 
@@ -707,6 +718,20 @@ export default function BlogPost() {
                       <time dateTime={post.date}>{formatDate(post.date)}</time>
                       <span className="mx-2 text-border" aria-hidden="true">/</span>
                       {post.readingTime} min read
+                      <AnimatePresence initial={false}>
+                        {readAt && (
+                          <motion.span
+                            initial={{ opacity: 0, scale: 0.6 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.6 }}
+                            transition={{ type: "spring", stiffness: 420, damping: 26 }}
+                            className="ml-3 inline-flex items-center gap-1 align-middle text-accent"
+                          >
+                            <ReadCheck size={14} draw={drawCheck} />
+                            Read
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
                     </p>
                   </div>
                 </div>
@@ -742,6 +767,10 @@ export default function BlogPost() {
                 </ReactMarkdown>
               </motion.article>
             )}
+            {status === "ready" && (
+              // Reaching this point is what "finished" means.
+              <div ref={endRef} aria-hidden="true" className="h-px" />
+            )}
             {status === "loading" && (
               <div className="article-grid">
                 <ArticleSkeleton />
@@ -767,6 +796,39 @@ export default function BlogPost() {
           {/* After the article */}
           <footer className="article-grid mt-16">
             <div>
+              <AnimatePresence initial={false}>
+                {readAt && (
+                  <motion.div
+                    key="finished"
+                    role="status"
+                    initial={{ opacity: 0, y: 14, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, transition: { duration: 0.2 } }}
+                    transition={{ type: "spring", stiffness: 260, damping: 24 }}
+                    className="mb-10 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-accent/30 bg-accent/[0.06] p-5"
+                  >
+                    <ReadCheck size={36} draw={drawCheck} className="shrink-0 text-accent" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-heading font-semibold text-text">You finished this post</p>
+                      <p className="text-sm text-muted">
+                        {drawCheck
+                          ? "It now shows as read on the blog page."
+                          : `You read it on ${formatDate(readAt)}.`}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        arrival.current.read = false;
+                        markUnread(slug);
+                      }}
+                      className="rounded-lg px-2 py-1 text-sm text-muted transition-colors hover:bg-white/5 hover:text-text"
+                    >
+                      Mark as unread
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               {post.tags.length > 0 && (
                 <Reveal as="ul" className="flex flex-wrap gap-2" aria-label="Tags">
                   {post.tags.map((tag) => (

@@ -14,7 +14,8 @@ import ScrollProgress from "../components/ScrollProgress";
 import Seo from "../components/Seo";
 import BackToTop from "../components/BackToTop";
 import Reveal, { EASE_OUT, staggerParent, fadeUpChild } from "../components/Reveal";
-import { KineticText, Tilt, AnimatedNumber, DrawLine, useParallax } from "../components/BlogMotion";
+import { KineticText, Tilt, AnimatedNumber, DrawLine, useParallax, ReadCheck } from "../components/BlogMotion";
+import { useReadPosts } from "../lib/readPosts";
 import NotFound from "./NotFound";
 import usePrefersReducedMotion from "../lib/usePrefersReducedMotion";
 import {
@@ -93,6 +94,7 @@ function PostLink({ post, children }) {
 }
 
 function Meta({ post, className = "" }) {
+  const read = Boolean(useReadPosts()[post.slug]);
   return (
     <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-xs ${className}`}>
       <Link
@@ -105,6 +107,12 @@ function Meta({ post, className = "" }) {
         {formatDate(post.date, { short: true })}
       </time>
       <span className="text-muted">{post.readingTime} min read</span>
+      {read && (
+        <span className="inline-flex items-center gap-1 text-accent" title="You've read this post">
+          <ReadCheck size={13} draw={false} />
+          Read
+        </span>
+      )}
     </div>
   );
 }
@@ -304,11 +312,35 @@ function TopicLink({ to, label, count, active }) {
   );
 }
 
+// "You've read 5 of 33": only shown once the reader has finished something.
+function ReadingCount() {
+  const readPosts = useReadPosts();
+  const count = posts.filter((p) => readPosts[p.slug]).length;
+  return (
+    <AnimatePresence>
+      {count > 0 && (
+        <motion.p
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className="mb-6 flex items-center gap-2 px-3 text-sm text-muted"
+        >
+          <ReadCheck size={15} draw={false} className="text-accent" />
+          <span>
+            You've read <AnimatedNumber value={count} className="text-text" /> of {posts.length}
+          </span>
+        </motion.p>
+      )}
+    </AnimatePresence>
+  );
+}
+
 function Sidebar({ topic, tag, onTag }) {
   return (
     <aside className="hidden lg:block">
       <div className="sticky top-24 space-y-10">
         <nav aria-label="Topics">
+          <ReadingCount />
           <h2 className="mb-2 px-3 text-sm font-medium text-text">Topics</h2>
           <ul className="space-y-0.5">
             <li>
