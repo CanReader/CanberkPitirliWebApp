@@ -46,20 +46,29 @@ if (DB_NAME && DB_USER && DB_PASS) {
 
 console.log(`Checking connection to: ${HOSTINGER_HOST}`);
 
+// --no-perms: the host rejects chmod on some files, which made lftp report
+// the whole mirror as failed.
 const lftpCmd = [
   'set ssl:verify-certificate no',
   'set sftp:auto-confirm yes',
-  `mirror -R --delete --verbose dist/ ${HOSTINGER_REMOTE_DIR}`,
+  `mirror -R --delete --no-perms --verbose dist/ ${HOSTINGER_REMOTE_DIR}`,
   'bye'
 ].join('; ');
 
-const fullCommand = `lftp -u "${HOSTINGER_USER}","${HOSTINGER_PASS}" ${HOSTINGER_HOST} -e "${lftpCmd}"`;
+// The password goes through LFTP_PASSWORD rather than the command line, so it
+// never shows up in the process list or in an error message.
+const fullCommand = `lftp --env-password -u "${HOSTINGER_USER}" ${HOSTINGER_HOST} -e "${lftpCmd}"`;
 
 try {
-  execSync(fullCommand, { stdio: "inherit", shell: "/bin/bash" });
+  execSync(fullCommand, {
+    stdio: "inherit",
+    shell: "/bin/bash",
+    env: { ...process.env, LFTP_PASSWORD: HOSTINGER_PASS },
+  });
   console.log("✅ Deployment successful!");
 } catch (error) {
-  console.error("❌ Deployment failed:", error.message);
+  // error.message would include the full command; the exit status is enough.
+  console.error(`❌ Deployment failed (lftp exit code ${error.status ?? "unknown"})`);
   process.exitCode = 1;
 } finally {
   rmSync(API_CONFIG, { force: true });
