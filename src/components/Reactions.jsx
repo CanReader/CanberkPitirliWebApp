@@ -12,12 +12,18 @@ import { Burst } from "./Achievement";
 
 const API = "/api/reactions.php";
 
+// Positive to negative, left to right. Keep in sync with EMOJI in
+// public/api/reactions.php and the dev stand-in.
 export const REACTIONS = [
   { id: "1f60d", label: "Love it" },
   { id: "1f525", label: "Fire" },
   { id: "1f92f", label: "Mind blown" },
   { id: "1f44f", label: "Applause" },
+  { id: "1f602", label: "Funny" },
   { id: "1f914", label: "Made me think" },
+  { id: "1f928", label: "Not convinced" },
+  { id: "1f971", label: "Boring" },
+  { id: "1f621", label: "Angry" },
 ];
 
 // A random id per browser, so each visitor can toggle each emoji once.
@@ -170,7 +176,7 @@ function ReactionButton({ reaction, count, mine, disabled, onToggle }) {
       whileHover={reduce ? undefined : { scale: 1.3, y: -6, zIndex: 10 }}
       whileTap={reduce ? undefined : { scale: 0.9 }}
       transition={{ type: "spring", stiffness: 420, damping: 18 }}
-      className="relative flex h-16 w-16 items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-60"
+      className="relative flex h-14 w-14 items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-60 sm:h-16 sm:w-16"
     >
       {/* Your own reaction: a soft glow behind the emoji rather than a box. */}
       <motion.span
@@ -188,12 +194,12 @@ function ReactionButton({ reaction, count, mine, disabled, onToggle }) {
         height={48}
         loading="lazy"
         draggable={false}
-        className={`relative h-12 w-12 select-none transition-opacity duration-150 ${playing ? "opacity-0" : "opacity-100"}`}
+        className={`relative h-10 w-10 select-none transition-opacity sm:h-12 sm:w-12 duration-150 ${playing ? "opacity-0" : "opacity-100"}`}
       />
       <span
         ref={holder}
         aria-hidden="true"
-        className={`pointer-events-none absolute inset-0 m-auto h-12 w-12 transition-opacity duration-150 ${playing ? "opacity-100" : "opacity-0"}`}
+        className={`pointer-events-none absolute inset-0 m-auto h-10 w-10 transition-opacity sm:h-12 sm:w-12 duration-150 ${playing ? "opacity-100" : "opacity-0"}`}
       />
       {count > 0 && (
         <motion.span
@@ -222,7 +228,7 @@ export default function Reactions({ target, prompt }) {
       <h2 id={`reactions-${target}`} className="mb-4 font-heading text-base font-semibold text-text">
         {prompt}
       </h2>
-      <div role="group" aria-label="Reactions" className="flex flex-wrap justify-center gap-2 sm:gap-4">
+      <div role="group" aria-label="Reactions" className="mx-auto flex max-w-[22rem] flex-wrap justify-center gap-1 sm:max-w-none sm:gap-1.5">
         {REACTIONS.map((r) => (
           <ReactionButton
             key={r.id}

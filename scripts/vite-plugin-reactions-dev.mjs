@@ -2,7 +2,7 @@
 // under `npm run dev` without PHP or the production database. Same contract,
 // same validation, kept in memory (restarting the dev server clears it).
 // Never part of the build: `apply: "serve"`.
-const EMOJI = ["1f60d", "1f525", "1f92f", "1f44f", "1f914"];
+const EMOJI = ["1f60d", "1f525", "1f92f", "1f44f", "1f602", "1f914", "1f928", "1f971", "1f621"];
 const TARGET = /^(post|series):[a-z0-9][a-z0-9-]{0,98}$/;
 const VISITOR = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 

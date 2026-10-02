@@ -16,7 +16,7 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
 
-const EMOJI = ['1f60d', '1f525', '1f92f', '1f44f', '1f914'];
+const EMOJI = ['1f60d', '1f525', '1f92f', '1f44f', '1f602', '1f914', '1f928', '1f971', '1f621'];
 const WRITE_LIMIT = 40;    // reaction changes allowed per IP...
 const WRITE_WINDOW = 600;  // ...per this many seconds
 
