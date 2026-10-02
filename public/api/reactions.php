@@ -4,10 +4,13 @@
 //   GET  /api/reactions.php?target=post:<slug>&visitor=<uuid>
 //   POST /api/reactions.php   {"target":"post:<slug>","emoji":"1f60d","visitor":"<uuid>","on":true}
 //
-// Both answer with {"counts":{"1f60d":3,...},"mine":["1f60d"]}. A visitor is a
-// random id the browser keeps; each visitor can toggle each emoji once per
-// target. Writes are rate limited per IP, and IPs are only stored as salted
-// hashes. Tables create themselves on first use. Credentials come from
+// Both answer with {"counts":{"1f60d":3,...},"mine":["1f60d"]}. A reader is
+// recognised by either of two things: the random id their browser keeps, or
+// their IP. So a new browser or a cleared cache on the same connection still
+// sees its reactions (and can't add duplicates), and a changed IP (VPN, mobile
+// network) is still recognised by the browser id. Each reader can toggle each
+// emoji once per target. Writes are rate limited per IP. IPs are only ever
+// stored as salted hashes. Tables create themselves on first use. Credentials come from
 // config.php, which the deploy script writes from .env.deploy; it is never in
 // git. Written for PHP 7.4+ so it runs on whatever the host provides.
 declare(strict_types=1);
@@ -48,7 +51,7 @@ function valid_visitor(string $v): bool
     return (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $v);
 }
 
-function state(PDO $pdo, string $target, string $visitor): array
+function state(PDO $pdo, string $target, string $visitor, string $ipHash): array
 {
     $counts = array_fill_keys(EMOJI, 0);
     $st = $pdo->prepare('SELECT emoji, COUNT(*) AS n FROM blog_reactions WHERE target = ? GROUP BY emoji');
@@ -58,12 +61,10 @@ function state(PDO $pdo, string $target, string $visitor): array
             $counts[$row['emoji']] = (int) $row['n'];
         }
     }
-    $mine = [];
-    if ($visitor !== '') {
-        $st = $pdo->prepare('SELECT emoji FROM blog_reactions WHERE target = ? AND visitor = ?');
-        $st->execute([$target, $visitor]);
-        $mine = array_values(array_intersect(EMOJI, array_column($st->fetchAll(), 'emoji')));
-    }
+    // Yours if it came from this browser or from this IP.
+    $st = $pdo->prepare('SELECT DISTINCT emoji FROM blog_reactions WHERE target = ? AND (visitor = ? OR ip_hash = ?)');
+    $st->execute([$target, $visitor, $ipHash]);
+    $mine = array_values(array_intersect(EMOJI, array_column($st->fetchAll(), 'emoji')));
     return ['counts' => $counts, 'mine' => $mine];
 }
 
@@ -93,10 +94,20 @@ try {
         target VARCHAR(100) NOT NULL,
         emoji VARCHAR(16) NOT NULL,
         visitor CHAR(36) NOT NULL,
+        ip_hash CHAR(64) NOT NULL DEFAULT \'\',
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (target, emoji, visitor),
-        KEY by_target (target)
+        KEY by_target (target),
+        KEY by_ip (target, ip_hash)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    // Tables created before IP matching existed get the column added once.
+    $has = $pdo->query("SELECT COUNT(*) FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'blog_reactions' AND COLUMN_NAME = 'ip_hash'")->fetchColumn();
+    if ((int) $has === 0) {
+        $pdo->exec("ALTER TABLE blog_reactions
+            ADD COLUMN ip_hash CHAR(64) NOT NULL DEFAULT '' AFTER visitor,
+            ADD KEY by_ip (target, ip_hash)");
+    }
     $pdo->exec('CREATE TABLE IF NOT EXISTS blog_reaction_writes (
         ip_hash CHAR(64) NOT NULL,
         at INT UNSIGNED NOT NULL,
@@ -104,6 +115,7 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+    $ipHash = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . '|' . $config['salt']);
 
     if ($method === 'GET') {
         $target = (string) ($_GET['target'] ?? '');
@@ -114,7 +126,7 @@ try {
         if ($visitor !== '' && !valid_visitor($visitor)) {
             $visitor = '';
         }
-        reply(200, state($pdo, $target, $visitor));
+        reply(200, state($pdo, $target, $visitor, $ipHash));
     }
 
     if ($method !== 'POST') {
@@ -138,7 +150,6 @@ try {
         reply(400, ['error' => 'bad_request']);
     }
 
-    $ipHash = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . '|' . $config['salt']);
     $now = time();
     $pdo->prepare('DELETE FROM blog_reaction_writes WHERE at < ?')->execute([$now - WRITE_WINDOW]);
     $st = $pdo->prepare('SELECT COUNT(*) FROM blog_reaction_writes WHERE ip_hash = ? AND at >= ?');
@@ -149,13 +160,20 @@ try {
     $pdo->prepare('INSERT INTO blog_reaction_writes (ip_hash, at) VALUES (?, ?)')->execute([$ipHash, $now]);
 
     if ($on) {
-        $pdo->prepare('INSERT IGNORE INTO blog_reactions (target, emoji, visitor) VALUES (?, ?, ?)')
-            ->execute([$target, $emoji, $visitor]);
+        // Already reacted from this browser or this IP: nothing to add.
+        $st = $pdo->prepare('SELECT 1 FROM blog_reactions WHERE target = ? AND emoji = ? AND (visitor = ? OR ip_hash = ?) LIMIT 1');
+        $st->execute([$target, $emoji, $visitor, $ipHash]);
+        if (!$st->fetchColumn()) {
+            $pdo->prepare('INSERT IGNORE INTO blog_reactions (target, emoji, visitor, ip_hash) VALUES (?, ?, ?, ?)')
+                ->execute([$target, $emoji, $visitor, $ipHash]);
+        }
     } else {
-        $pdo->prepare('DELETE FROM blog_reactions WHERE target = ? AND emoji = ? AND visitor = ?')
-            ->execute([$target, $emoji, $visitor]);
+        // Taking it back clears it for both, so it doesn't reappear in the
+        // other browser.
+        $pdo->prepare('DELETE FROM blog_reactions WHERE target = ? AND emoji = ? AND (visitor = ? OR ip_hash = ?)')
+            ->execute([$target, $emoji, $visitor, $ipHash]);
     }
-    reply(200, state($pdo, $target, $visitor));
+    reply(200, state($pdo, $target, $visitor, $ipHash));
 } catch (Throwable $e) {
     error_log('reactions: ' . $e->getMessage());
     reply(500, ['error' => 'server_error']);
