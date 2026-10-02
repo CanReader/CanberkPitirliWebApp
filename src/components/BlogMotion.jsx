@@ -162,3 +162,42 @@ export function useParallax(ref, distance = 24) {
   const y = useTransform(scrollYProgress, [0, 1], [-distance, distance]);
   return reduce ? {} : { y, scale: 1.08 };
 }
+
+// The "finished reading" mark: a ring that draws itself, then the check
+// inside it. With `draw` false it renders already complete (a post read on an
+// earlier visit), so only the moment of finishing animates. A plain circle
+// and a two-segment stroke, nothing an icon set would do differently.
+export function ReadCheck({ size = 20, draw = true, className = "" }) {
+  const reduce = useReducedMotion();
+  const animateIn = draw && !reduce;
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <motion.circle
+        cx="12"
+        cy="12"
+        r="10"
+        initial={animateIn ? { pathLength: 0, opacity: 0.3 } : false}
+        animate={{ pathLength: 1, opacity: 1 }}
+        transition={{ duration: 0.7, ease: EASE_OUT }}
+        style={{ rotate: -90, transformOrigin: "50% 50%" }}
+      />
+      <motion.path
+        d="M7.5 12.5l3 3 6-6.5"
+        initial={animateIn ? { pathLength: 0 } : false}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.45, delay: animateIn ? 0.55 : 0, ease: EASE_OUT }}
+      />
+    </svg>
+  );
+}
