@@ -33,10 +33,33 @@ export const topicPath = (name) => {
 //   }
 export const series = [
   {
-    id: "hlsl",
-    title: "HLSL in depth",
-    description: "How shaders actually run on the GPU, the functions you reach for every day, and the math behind physically based lighting.",
-    slugs: ["hlsl-from-first-principles", "hlsl-functions-explained", "rendering-equation-to-hlsl"],
+    id: "graphics-programming",
+    title: "Graphics Programming",
+    description: "From how a shader runs on the GPU to the rendering techniques and APIs built on top of it.",
+    children: [
+      {
+        id: "shaders",
+        title: "Shaders",
+        children: [
+          {
+            id: "hlsl",
+            title: "HLSL in depth",
+            description: "How shaders actually run on the GPU, the functions you reach for every day, and the math behind physically based lighting.",
+            slugs: ["hlsl-from-first-principles", "hlsl-functions-explained", "rendering-equation-to-hlsl"],
+          },
+        ],
+      },
+      {
+        id: "rendering-techniques",
+        title: "Rendering techniques",
+        slugs: ["shadow-mapping-dx11", "deferred-vs-forward-rendering", "occlusion-culling-20-percent-vr"],
+      },
+      {
+        id: "graphics-apis",
+        title: "Graphics APIs",
+        slugs: ["vulkan-vs-other-graphics-apis", "one-engine-four-graphics-backends"],
+      },
+    ],
   },
   {
     id: "viewcam",
