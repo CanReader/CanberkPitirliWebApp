@@ -11,6 +11,7 @@ const BlogPost = lazy(() => import("./pages/BlogPost"));
 const SeriesPage = lazy(() => import("./pages/SeriesPage"));
 const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const DemoGallery = import.meta.env.DEV ? lazy(() => import("./pages/DemoGallery")) : null;
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
@@ -24,6 +25,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/blog" element={<BlogList />} />
             <Route path="/blog/topic/:topic" element={<BlogList />} />
             <Route path="/blog/series/:id" element={<SeriesPage />} />
+            {DemoGallery && <Route path="/blog/demos" element={<DemoGallery />} />}
             <Route path="/blog/:slug" element={<BlogPost />} />
             <Route path="/projects/:slug" element={<ProjectDetail />} />
             <Route path="*" element={<NotFound />} />

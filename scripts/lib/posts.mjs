@@ -17,8 +17,9 @@
 //
 // Every header value is JSON (quoted strings, arrays, true/false), one key
 // per line. Optional keys: `featured`, `visible: false` for drafts (excluded
-// from the site and the build), and `cover: "/images/x.webp"` to override the
-// cover, which otherwise is the first local image in the body.
+// from the site and the build), `cover: "/images/x.webp"` to override the
+// cover, which otherwise is the first local image in the body, and
+// `source: "https://github.com/..."` for a "Source code" button on the post.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { extractHeadings } from "../../src/lib/blogUtils.js";
@@ -43,6 +44,9 @@ export function parsePost(slug, raw) {
   }
   for (const key of REQUIRED) {
     if (meta[key] === undefined) throw new Error(`${slug}.md: missing "${key}"`);
+  }
+  if (meta.source !== undefined && !/^https?:\/\/\S+$/.test(String(meta.source))) {
+    throw new Error(`${slug}.md: "source" must be a full http(s) link`);
   }
   return { slug, ...meta, content: m[2].replace(/^\n+/, "") };
 }

@@ -8,8 +8,8 @@
 //   virtual:blog-search   plain text of every post for full-text search.
 //                         Loaded on demand when the reader starts searching.
 //
-// Drafts (visible: false) are left out of all three, so their text is not
-// shipped. In dev, adding or editing a post file reloads the page.
+// Drafts (visible: false) are left out of all three in builds, so their text
+// is not shipped; the dev server includes them, marked as drafts. In dev, adding or editing a post file reloads the page.
 import { join } from "node:path";
 import { loadPosts, plainText, POSTS_DIR } from "./lib/posts.mjs";
 // Series are defined in this file; a mistake there should fail loudly.
@@ -37,7 +37,9 @@ export default function blogPlugin() {
     async load(id) {
       if (!id.startsWith("\0virtual:blog-")) return null;
       const name = id.slice(1);
-      const posts = loadPosts();
+      // Drafts (visible: false) show up under `npm run dev` so they can be read
+      // in the real layout, and are never part of a build.
+      const posts = loadPosts({ includeDrafts: Boolean(server) });
       // `vite build --watch` rebuilds when a post changes. The dev server has
       // its own reload hook below (it can't take a directory as a watch file).
       if (!server) {
@@ -48,10 +50,17 @@ export default function blogPlugin() {
         // Cache-busted import: a plain one would keep validating the series
         // tree as it was when the dev server started.
         const { validateSeries } = await import(`${TAXONOMY}?t=${Date.now()}`);
-        const problems = validateSeries(posts.map((p) => p.slug));
+        const drafts = loadPosts({ includeDrafts: true }).filter((p) => p.visible === false);
+        const problems = validateSeries(posts.map((p) => p.slug), drafts.map((p) => p.slug));
         if (problems.length) this.error(`Series definition problems:\n  ${problems.join("\n  ")}`);
         const index = posts.map(({ content, ...meta }) => meta);
-        return `export const postIndex = ${JSON.stringify(index)};`;
+        // Drafts that aren't in this build: titles only, so series can list
+        // them as coming soon. Nothing else about them is shipped.
+        const included = new Set(posts.map((p) => p.slug));
+        const draftTitles = Object.fromEntries(
+          drafts.filter((d) => !included.has(d.slug)).map((d) => [d.slug, d.title])
+        );
+        return `export const postIndex = ${JSON.stringify(index)};\nexport const draftTitles = ${JSON.stringify(draftTitles)};`;
       }
       if (name === CONTENT) {
         const entries = posts.map(

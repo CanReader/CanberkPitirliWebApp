@@ -114,6 +114,9 @@ function Meta({ post, className = "" }) {
         {formatDate(post.date, { short: true })}
       </time>
       <span className="text-muted">{post.readingTime} min read</span>
+      {post.visible === false && (
+        <span className="rounded border border-amber-400/40 px-1.5 text-amber-300">Draft</span>
+      )}
       {read && (
         <motion.span
           className="inline-flex items-center gap-1 text-accent"
@@ -368,7 +371,7 @@ function SeriesItem({ node }) {
       >
         <span>{node.title}</span>
         <span className={`shrink-0 font-mono text-xs ${done ? "text-accent" : ""}`}>
-          {done ? `${done}/${slugs.length}` : `${slugs.length} parts`}
+          {done ? `${done}/${slugs.length}` : slugs.length ? `${slugs.length} parts` : "soon"}
         </span>
       </Link>
       {children.length > 0 && (
@@ -380,7 +383,7 @@ function SeriesItem({ node }) {
                 className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-[13px] text-muted transition-colors hover:bg-surface/60 hover:text-text"
               >
                 <span>{c.title}</span>
-                <span className="shrink-0 font-mono text-[11px]">{seriesSlugs(c).length}</span>
+                <span className="shrink-0 font-mono text-[11px]">{seriesSlugs(c).length || "soon"}</span>
               </Link>
             </li>
           ))}
