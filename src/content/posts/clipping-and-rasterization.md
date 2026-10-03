@@ -4,7 +4,6 @@ date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Rendering"]
 excerpt: "Between the vertex shader and the pixel shader sits fixed hardware that clips triangles, culls the ones facing away, and decides exactly which pixels each triangle covers. It all comes down to three edge functions."
-visible: false
 ---
 
 Your vertex shader outputs three positions. Your pixel shader runs on pixels. Something in between has to answer a very precise question: given this triangle, which pixels does it cover? That something is the rasterizer, and the steps leading into it are worth knowing, because they explain a lot of strange artifacts you'll eventually hit.

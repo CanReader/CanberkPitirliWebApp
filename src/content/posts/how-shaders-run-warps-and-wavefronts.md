@@ -4,7 +4,6 @@ date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Shaders"]
 excerpt: "A GPU doesn't run your shader thousands of times in parallel the way a CPU runs threads. It runs it in lockstep groups of 32 or 64, and it hides memory latency by juggling those groups. Both facts shape how fast your shaders are."
-visible: false
 ---
 
 Your shader looks like a function that runs once per vertex or once per pixel. That's the right way to write it and the wrong way to picture it running. To reason about shader performance you need the real picture, and it's surprisingly simple once you see it.

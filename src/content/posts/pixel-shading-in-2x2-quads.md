@@ -4,7 +4,6 @@ date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Shaders"]
 excerpt: "GPUs never shade a single pixel. They shade 2x2 blocks so they can compute derivatives, which is how texture filtering picks a mip level. The side effect: a one-pixel triangle costs four pixels of work."
-visible: false
 ---
 
 Here's a fact that surprises almost everyone the first time: a GPU never runs your pixel shader on just one pixel. The smallest unit of pixel shading is a 2x2 block, a quad. Even if a triangle covers exactly one pixel, four shader invocations run.

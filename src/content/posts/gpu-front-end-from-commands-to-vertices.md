@@ -4,7 +4,6 @@ date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Rendering"]
 excerpt: "Before a vertex shader runs, the GPU has to parse your commands, read your index buffer, and decide which vertices actually need shading. Index order turns out to matter more than most people expect."
-visible: false
 ---
 
 Last time we ended at the mailbox: the CPU writes command packets, the GPU reads them later. Now let's go inside and watch what happens to a draw packet before any of your shader code runs. This part of the GPU is called the front end, and it's mostly fixed-function hardware you don't program but very much influence.

@@ -4,7 +4,6 @@ date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Performance"]
 excerpt: "A draw call doesn't draw anything. It's a few bytes in a command buffer that the GPU will read later. Understanding that delay explains draw call cost, CPU-GPU sync, and why newer APIs look the way they do."
-visible: false
 ---
 
 When you call draw in any graphics API, nothing gets drawn. Not right then, anyway. The function returns in microseconds, long before a single pixel exists. What you actually did was append a small record to a list that the GPU will get around to reading later.
