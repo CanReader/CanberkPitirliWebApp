@@ -1,23 +1,27 @@
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useDragPoints } from "./useDragPoints";
+import { Handle, Key, PALETTE, Strip, num, useDemoKeys } from "./DemoKit";
 
-// A tiny software rasterizer on a 20x12 pixel grid. Each pixel's center is
-// tested against the triangle's three edge functions, exactly as the post
-// describes. With the "quads" flag the grid is split into 2x2 quads and the
-// pixels a quad shades without covering them (helper lanes) are shown too.
+// A tiny software rasterizer on a 20x12 pixel grid. Every pixel center in
+// the triangle's bounding box is tested against the three edge functions,
+// exactly as the post describes, and covered pixels get the vertex colors
+// blended by their barycentric weights. Hovering a pixel shows its weights.
+// The "quads" flag groups pixels into 2x2 quads and shows helper lanes.
 
 const W = 20;
 const H = 12;
 const START = [
-  { x: 3.2, y: 1.6 },
-  { x: 17.4, y: 4.3 },
-  { x: 6.8, y: 10.7 },
+  { x: 3.4, y: 1.7 },
+  { x: 17.3, y: 4.6 },
+  { x: 7.2, y: 10.6 },
 ];
 const TINY = [
   { x: 9.3, y: 5.2 },
   { x: 10.9, y: 5.6 },
   { x: 9.8, y: 6.9 },
 ];
+const COLORS = [PALETTE.coral, PALETTE.green, PALETTE.blue];
+const RGB = COLORS.map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
 
 const clamp = (p) => ({ x: Math.min(W, Math.max(0, p.x)), y: Math.min(H, Math.max(0, p.y)) });
 
@@ -25,20 +29,37 @@ function edge(a, b, p) {
   return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
 }
 
-function rasterize([v0, v1, v2]) {
-  // Flip the tests for the other winding so the demo works however the
-  // corners are dragged. A real GPU would cull one of the two instead.
-  const sign = edge(v0, v1, v2) < 0 ? -1 : 1;
-  const covered = new Set();
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const p = { x: x + 0.5, y: y + 0.5 };
-      if (sign * edge(v0, v1, p) >= 0 && sign * edge(v1, v2, p) >= 0 && sign * edge(v2, v0, p) >= 0) {
-        covered.add(y * W + x);
-      }
+// Barycentric weights of p. Dividing by the signed area makes the test the
+// same for either winding: inside means all three weights are >= 0.
+function weights([v0, v1, v2], p) {
+  const area = edge(v0, v1, v2);
+  if (Math.abs(area) < 1e-6) return null;
+  return [edge(v1, v2, p) / area, edge(v2, v0, p) / area, edge(v0, v1, p) / area];
+}
+
+function bbox(pts) {
+  const xs = pts.map((p) => p.x);
+  const ys = pts.map((p) => p.y);
+  return {
+    x0: Math.max(0, Math.floor(Math.min(...xs))),
+    y0: Math.max(0, Math.floor(Math.min(...ys))),
+    x1: Math.min(W - 1, Math.ceil(Math.max(...xs)) - 1),
+    y1: Math.min(H - 1, Math.ceil(Math.max(...ys)) - 1),
+  };
+}
+
+function rasterize(pts) {
+  const covered = new Map(); // index -> rgb string
+  const box = bbox(pts);
+  for (let y = box.y0; y <= box.y1; y++) {
+    for (let x = box.x0; x <= box.x1; x++) {
+      const w = weights(pts, { x: x + 0.5, y: y + 0.5 });
+      if (!w || w.some((v) => v < 0)) continue;
+      const c = [0, 1, 2].map((k) => Math.round(w[0] * RGB[0][k] + w[1] * RGB[1][k] + w[2] * RGB[2][k]));
+      covered.set(y * W + x, `rgb(${c.join(",")})`);
     }
   }
-  return covered;
+  return { covered, box };
 }
 
 // Every 2x2 quad with at least one covered pixel runs all four lanes.
@@ -56,137 +77,231 @@ function quadsOf(covered) {
   return { quads, helpers };
 }
 
-function Stat({ label, value }) {
-  return (
-    <div>
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="font-mono text-lg text-text">{value}</dd>
-    </div>
-  );
-}
-
-function Toggle({ on, onClick, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      className={`rounded-lg border px-3 py-1.5 text-sm transition-colors active:scale-[0.98] ${
-        on ? "border-accent/50 text-accent" : "border-border text-muted hover:border-muted/50 hover:text-text"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
+const reduced = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 export default function RasterizerDemo({ flags }) {
-  const { points, setPoints, svgRef, handleProps } = useDragPoints(START, { clamp });
+  const rootRef = useRef(null);
+  const { points, animateTo, svgRef, toSvg, handleProps, touched, dragging } = useDragPoints(START, { clamp });
   const [showQuads, setShowQuads] = useState(flags.has("quads"));
-  const [showCenters, setShowCenters] = useState(!flags.has("quads"));
+  const [probe, setProbe] = useState(null);
+  const [scan, setScan] = useState(null); // number of bbox pixels visited so far
+  const scanRaf = useRef(0);
 
-  const covered = useMemo(() => rasterize(points), [points]);
+  const { covered, box } = useMemo(() => rasterize(points), [points]);
   const { quads, helpers } = useMemo(() => quadsOf(covered), [covered]);
   const lanes = quads.length * 4;
+  const boxW = box.x1 - box.x0 + 1;
+  const boxCells = Math.max(0, boxW * (box.y1 - box.y0 + 1));
   const patternId = `helper-${useId().replace(/:/g, "")}`;
+
+  // Walk the bounding box one pixel per frame so you can watch the test run.
+  const startScan = () => {
+    cancelAnimationFrame(scanRaf.current);
+    if (reduced()) return setScan(null);
+    let n = 0;
+    const tick = () => {
+      n += 1;
+      setScan(n);
+      if (n < boxCells) scanRaf.current = requestAnimationFrame(tick);
+      else setTimeout(() => setScan(null), 500);
+    };
+    scanRaf.current = requestAnimationFrame(tick);
+  };
+  useEffect(() => () => cancelAnimationFrame(scanRaf.current), []);
+  useEffect(() => {
+    cancelAnimationFrame(scanRaf.current);
+    setScan(null);
+  }, [points]);
+
+  useDemoKeys(rootRef, {
+    q: () => setShowQuads((v) => !v),
+    s: startScan,
+    t: () => animateTo(TINY),
+    r: () => animateTo(START),
+  });
+
+  // Mouse probes on hover; touch probes on tap.
+  const probeAt = (e) => {
+    const p = toSvg(e);
+    const x = Math.floor(p.x);
+    const y = Math.floor(p.y);
+    setProbe(x >= 0 && x < W && y >= 0 && y < H ? { x, y } : null);
+  };
+
+  const visited = (x, y) => {
+    if (scan == null) return true;
+    if (x < box.x0 || x > box.x1 || y < box.y0 || y > box.y1) return false;
+    return (y - box.y0) * boxW + (x - box.x0) < scan;
+  };
+  const scanAt = scan != null && scan <= boxCells ? { x: box.x0 + ((scan - 1) % boxW), y: box.y0 + Math.floor((scan - 1) / boxW) } : null;
+
+  // What the probe (hovered pixel, or the scan cursor) sees.
+  const focus = scanAt ?? (dragging == null ? probe : null);
+  const focusW = focus && weights(points, { x: focus.x + 0.5, y: focus.y + 0.5 });
+  const failing = focusW ? [0, 1, 2].filter((k) => focusW[k] < 0) : [];
 
   const cells = [];
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = y * W + x;
-      const fill = covered.has(i)
-        ? "rgba(52, 211, 153, 0.7)"
-        : showQuads && helpers.has(i)
-          ? `url(#${patternId})`
-          : "transparent";
-      cells.push(<rect key={i} x={x} y={y} width={1} height={1} fill={fill} />);
+      if (!visited(x, y)) continue;
+      if (covered.has(i)) cells.push(<rect key={i} x={x} y={y} width={1} height={1} fill={covered.get(i)} fillOpacity={0.92} />);
+      else if (showQuads && helpers.has(i)) cells.push(<rect key={i} x={x} y={y} width={1} height={1} fill={`url(#${patternId})`} />);
     }
   }
 
+  const readout = focus ? (
+    <span className="flex flex-wrap gap-x-4">
+      <span className="text-zinc-200">
+        pixel ({focus.x}, {focus.y})
+      </span>
+      {focusW ? (
+        <>
+          {focusW.map((w, k) => (
+            <span key={k} style={{ color: w < 0 ? PALETTE.bad : COLORS[k] }}>
+              w{k} {num(w)}
+            </span>
+          ))}
+          <span className={failing.length ? "text-zinc-500" : "text-zinc-100"}>
+            {failing.length ? `outside edge ${failing.map((k) => `v${(k + 1) % 3}v${(k + 2) % 3}`).join(", ")}` : "inside"}
+          </span>
+        </>
+      ) : (
+        <span>degenerate triangle</span>
+      )}
+    </span>
+  ) : showQuads ? (
+    <span className="flex flex-wrap gap-x-4">
+      <span className="text-zinc-200">{covered.size} pixels</span>
+      <span>{quads.length} quads</span>
+      <span>{lanes} lanes shaded</span>
+      <span className={lanes && (lanes - covered.size) / lanes > 0.4 ? "text-[#F2735E]" : ""}>
+        {lanes ? Math.round(((lanes - covered.size) / lanes) * 100) : 0}% helpers
+      </span>
+    </span>
+  ) : (
+    <span className="flex flex-wrap gap-x-4">
+      <span className="text-zinc-200">{covered.size} pixels covered</span>
+      <span>{boxCells} tested</span>
+      {!touched && <span className="text-zinc-500">drag a corner, or point at a pixel</span>}
+    </span>
+  );
+
   return (
-    <div>
+    <div ref={rootRef}>
       <svg
         ref={svgRef}
-        viewBox={`-0.3 -0.3 ${W + 0.6} ${H + 0.6}`}
-        className="block w-full select-none"
+        viewBox={`-0.4 -0.4 ${W + 0.8} ${H + 0.8}`}
+        className="block w-full touch-pan-y select-none"
         role="img"
         aria-label={`A ${W} by ${H} pixel grid with a triangle covering ${covered.size} pixels`}
+        onPointerMove={(e) => dragging == null && probeAt(e)}
+        onPointerDown={(e) => e.pointerType !== "mouse" && probeAt(e)}
+        onPointerLeave={(e) => e.pointerType === "mouse" && setProbe(null)}
       >
         <defs>
-          <pattern id={patternId} width="0.25" height="0.25" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="0.25" height="0.25" fill="#34D399" fillOpacity="0.08" />
-            <line x1="0" y1="0" x2="0" y2="0.25" stroke="#34D399" strokeOpacity="0.55" strokeWidth="0.06" />
+          <pattern id={patternId} width="0.3" height="0.3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="0.3" stroke="#E4E4E7" strokeOpacity="0.35" strokeWidth="0.07" />
           </pattern>
         </defs>
 
+        <rect x={0} y={0} width={W} height={H} fill="#111114" />
         {cells}
 
-        {/* pixel grid */}
-        <g stroke="#27272A" strokeWidth="0.03">
+        <g stroke="#232327" strokeWidth="0.035">
           {Array.from({ length: W + 1 }, (_, x) => <line key={`v${x}`} x1={x} y1={0} x2={x} y2={H} />)}
           {Array.from({ length: H + 1 }, (_, y) => <line key={`h${y}`} x1={0} y1={y} x2={W} y2={y} />)}
         </g>
 
+        {/* the rasterizer only tests pixels inside the bounding box */}
+        {boxCells > 0 && (
+          <rect
+            x={box.x0}
+            y={box.y0}
+            width={boxW}
+            height={box.y1 - box.y0 + 1}
+            fill="none"
+            stroke="#71717A"
+            strokeWidth="0.05"
+            strokeDasharray="0.2 0.16"
+            opacity={scan != null || focus ? 0.9 : 0.35}
+          />
+        )}
+        <g>
+          {Array.from({ length: boxCells }, (_, n) => {
+            const x = box.x0 + (n % boxW);
+            const y = box.y0 + Math.floor(n / boxW);
+            if (!visited(x, y)) return null;
+            return <circle key={n} cx={x + 0.5} cy={y + 0.5} r={0.06} fill={covered.has(y * W + x) ? "#0c0c0e" : "#52525B"} />;
+          })}
+        </g>
+
         {showQuads && (
-          <g fill="none" stroke="#A1A1AA" strokeOpacity="0.7" strokeWidth="0.06">
-            {quads.map((q) => <rect key={`${q.x},${q.y}`} x={q.x} y={q.y} width={2} height={2} rx={0.08} />)}
+          <g fill="none" stroke="#E4E4E7" strokeOpacity="0.55" strokeWidth="0.06">
+            {quads.map((q) => <rect key={`${q.x},${q.y}`} x={q.x + 0.04} y={q.y + 0.04} width={1.92} height={1.92} rx={0.12} />)}
           </g>
         )}
 
-        {showCenters && (
-          <g>
-            {Array.from({ length: W * H }, (_, i) => (
-              <circle
-                key={i}
-                cx={(i % W) + 0.5}
-                cy={Math.floor(i / W) + 0.5}
-                r={0.07}
-                className={covered.has(i) ? "fill-[#0f0f12]" : "fill-zinc-600"}
-              />
-            ))}
-          </g>
-        )}
-
-        <polygon
-          points={points.map((p) => `${p.x},${p.y}`).join(" ")}
-          fill="none"
-          stroke="#E4E4E7"
-          strokeWidth="0.06"
-          strokeLinejoin="round"
-        />
-
-        {points.map((p, i) => (
-          <g key={i} {...handleProps(i)} aria-label={`Corner ${i + 1}`} className="group outline-none">
-            <circle cx={p.x} cy={p.y} r={0.9} fill="transparent" />
-            <circle
-              cx={p.x}
-              cy={p.y}
-              r={0.32}
-              className="fill-[#0f0f12] stroke-accent transition-[r] group-hover:[r:0.42] group-focus-visible:[r:0.42]"
-              strokeWidth="0.1"
+        {/* edges; any edge the probed pixel fails is called out */}
+        {[0, 1, 2].map((k) => {
+          const a = points[(k + 1) % 3];
+          const b = points[(k + 2) % 3];
+          const bad = failing.includes(k);
+          return (
+            <line
+              key={k}
+              x1={a.x}
+              y1={a.y}
+              x2={b.x}
+              y2={b.y}
+              stroke={bad ? PALETTE.bad : "#E4E4E7"}
+              strokeOpacity={bad ? 1 : 0.85}
+              strokeWidth={bad ? 0.1 : 0.055}
+              strokeLinecap="round"
             />
+          );
+        })}
+
+        {focus && (
+          <g pointerEvents="none">
+            <rect x={focus.x} y={focus.y} width={1} height={1} fill="none" stroke="#FAFAFA" strokeWidth="0.07" />
+            {focusW &&
+              points.map((v, k) => (
+                <line key={k} x1={focus.x + 0.5} y1={focus.y + 0.5} x2={v.x} y2={v.y} stroke={COLORS[k]} strokeOpacity="0.45" strokeWidth="0.035" strokeDasharray="0.12 0.1" />
+              ))}
           </g>
-        ))}
+        )}
+
+        {points.map((p, i) => {
+          // put each label on the outside of its corner
+          const cx = (points[0].x + points[1].x + points[2].x) / 3;
+          const cy = (points[0].y + points[1].y + points[2].y) / 3;
+          const len = Math.hypot(p.x - cx, p.y - cy) || 1;
+          return (
+          <Handle
+            key={i}
+            {...handleProps(i, `Vertex v${i}`)}
+            x={p.x}
+            y={p.y}
+            r={0.28}
+            color={COLORS[i]}
+            hint={!touched && i === 1}
+            active={dragging === i}
+            label={`v${i}`}
+            labelDx={((p.x - cx) / len) * 0.75 - 0.25}
+            labelDy={((p.y - cy) / len) * 0.75 + 0.17}
+            fontSize={0.5}
+          />
+          );
+        })}
       </svg>
 
-      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 border-t border-border/70 px-5 py-4">
-        <dl className="flex flex-wrap gap-x-8 gap-y-2">
-          <Stat label="Pixels covered" value={covered.size} />
-          {showQuads && (
-            <>
-              <Stat label="2x2 quads" value={quads.length} />
-              <Stat label="Lanes shaded" value={lanes} />
-              <Stat label="Helper lanes" value={lanes ? `${Math.round(((lanes - covered.size) / lanes) * 100)}%` : "0%"} />
-            </>
-          )}
-        </dl>
-        <div className="flex flex-wrap gap-2">
-          <Toggle on={showCenters} onClick={() => setShowCenters((v) => !v)}>Centers</Toggle>
-          <Toggle on={showQuads} onClick={() => setShowQuads((v) => !v)}>Quads</Toggle>
-          <Toggle on={false} onClick={() => setPoints(TINY)}>Tiny triangle</Toggle>
-          <Toggle on={false} onClick={() => setPoints(START)}>Reset</Toggle>
-        </div>
-      </div>
+      <Strip readout={readout}>
+        <Key k="q" on={showQuads} onClick={() => setShowQuads((v) => !v)}>Quads</Key>
+        <Key k="s" onClick={startScan}>Scan</Key>
+        <Key k="t" onClick={() => animateTo(TINY)}>Tiny</Key>
+        <Key k="r" onClick={() => animateTo(START)}>Reset</Key>
+      </Strip>
     </div>
   );
 }

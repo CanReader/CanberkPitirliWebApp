@@ -9,19 +9,43 @@ import Reveal from "../Reveal";
 //
 // The first word picks the demo, the rest are flags passed to it. Each demo
 // is its own chunk, so posts without one never download any of this.
+// `caption` is either a string or a function of the flags.
 export const demos = {
   rasterizer: {
-    title: "Rasterizer",
+    title: "Rasterizing a triangle",
+    variants: ["", "quads"],
     caption: (flags) =>
       flags.has("quads")
-        ? "Hatched pixels are helper lanes: shaded so their quad can compute derivatives, then thrown away."
-        : "Drag the corners. A pixel is drawn when its center is inside all three edges.",
+        ? "Hatched pixels are helper lanes: shaded only so their quad can compute derivatives, then thrown away. Try the tiny triangle."
+        : "Drag a corner. Point at any pixel to see its three edge weights; it's drawn only when none of them is negative. Scan replays the test pixel by pixel.",
     component: lazy(() => import("./RasterizerDemo")),
   },
+  floor: {
+    title: "Texturing a floor",
+    variants: ["", "affine", "mips"],
+    caption: (flags) =>
+      flags.has("mips")
+        ? "Each color is a mip level, chosen per 2x2 quad from how fast the UVs change between neighbors. Drag to turn the floor, and turn filtering off to see why it matters."
+        : "Drag to turn the floor. With perspective correction off, the checkers bend along the diagonal where the two triangles meet.",
+    component: lazy(() => import("./FloorDemo")),
+  },
   "dot-product": {
-    title: "Dot product",
-    caption: "Drag either arrow. The dot product is the length of one projected onto the other, times the other's length.",
+    title: "The dot product",
+    variants: [""],
+    caption: "Drag either tip. The tinted half is everything in front of a: the dot product is positive there, zero on the dashed line, negative behind it.",
     component: lazy(() => import("./DotProductDemo")),
+  },
+  matrix: {
+    title: "A matrix is its basis vectors",
+    variants: [""],
+    caption: "Drag the tips of the two basis vectors and the whole plane follows. The determinant is the area of the shaded cell, and goes negative when the F flips.",
+    component: lazy(() => import("./MatrixDemo")),
+  },
+  gamma: {
+    title: "Blending in sRGB vs linear",
+    variants: [""],
+    caption: "The same two colors mixed two ways. Mixing the stored sRGB values goes dark and muddy in the middle; mixing in linear light and converting back does not.",
+    component: lazy(() => import("./GammaDemo")),
   },
 };
 
@@ -30,11 +54,18 @@ export function parseDemoSpec(spec) {
   return { name, flags: new Set(flags) };
 }
 
-export function DemoFrame({ caption, children }) {
+export function DemoFrame({ title, caption, children }) {
   return (
-    <Reveal as="figure" className="wide my-10">
-      <div className="overflow-hidden rounded-xl border border-border bg-[#0f0f12] font-sans">{children}</div>
-      {caption && <figcaption className="mt-3 text-center text-sm text-muted">{caption}</figcaption>}
+    <Reveal as="figure" className="wide my-12">
+      <div className="overflow-hidden rounded-xl border border-zinc-800 bg-[#0c0c0e] font-sans shadow-[0_1px_0_rgba(255,255,255,0.03)_inset]">
+        {children}
+      </div>
+      {(title || caption) && (
+        <figcaption className="mx-auto mt-4 max-w-[65ch] font-serif text-[0.95rem] leading-relaxed text-zinc-400">
+          {title && <span className="font-semibold text-zinc-200">{title}. </span>}
+          {caption}
+        </figcaption>
+      )}
     </Reveal>
   );
 }
@@ -50,8 +81,8 @@ export default function Demo({ spec }) {
   }
   const Component = demo.component;
   return (
-    <DemoFrame caption={typeof demo.caption === "function" ? demo.caption(flags) : demo.caption}>
-      <Suspense fallback={<div className="aspect-[5/3] animate-pulse bg-surface/40" />}>
+    <DemoFrame title={demo.title} caption={typeof demo.caption === "function" ? demo.caption(flags) : demo.caption}>
+      <Suspense fallback={<div className="aspect-[5/3] animate-pulse bg-zinc-900/60" />}>
         <Component flags={flags} />
       </Suspense>
     </DemoFrame>

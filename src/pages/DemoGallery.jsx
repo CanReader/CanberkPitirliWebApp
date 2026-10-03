@@ -13,13 +13,16 @@ export default function DemoGallery() {
           Embed one in a post with a <code className="font-mono text-sm">```demo name flags</code> block.
         </p>
         <div className="mt-6">
-          {Object.keys(demos).flatMap((name) =>
-            (name === "rasterizer" ? [name, `${name} quads`] : [name]).map((spec) => (
-              <section key={spec}>
-                <h2 className="mt-8 font-mono text-sm text-muted">{spec}</h2>
-                <Demo spec={spec} />
-              </section>
-            )),
+          {Object.entries(demos).flatMap(([name, d]) =>
+            d.variants.map((flag) => {
+              const spec = `${name} ${flag}`.trim();
+              return (
+                <section key={spec}>
+                  <h2 className="mt-8 font-mono text-sm text-muted">{spec}</h2>
+                  <Demo spec={spec} />
+                </section>
+              );
+            }),
           )}
         </div>
       </main>
