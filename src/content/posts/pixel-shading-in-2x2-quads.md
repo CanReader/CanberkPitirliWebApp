@@ -44,6 +44,12 @@ For big triangles that's a thin border of waste along the edges, no big deal. Fo
 - a triangle covering 1 pixel runs 4 lanes: 75% wasted
 - a long thin triangle can touch many quads while covering only a few pixels in each
 
+Here's the same rasterizer from the last post, now showing quads. The hatched pixels are helper lanes. Hit "Tiny triangle" and look at the percentage:
+
+```demo
+rasterizer quads
+```
+
 This is the main reason dense geometry gets expensive faster than triangle count suggests. Once triangles shrink to a few pixels each, a large share of your pixel shading is helper lanes. It's a big part of why LODs exist, why very dense meshes are often rasterized in compute shaders by modern engines instead of the hardware path, and why "just add more triangles" eventually stops being free.
 
 ## Discard and derivatives
