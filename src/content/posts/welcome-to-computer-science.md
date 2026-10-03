@@ -4,7 +4,6 @@ date: "2026-10-03"
 category: "Systems"
 tags: ["Computer Science", "Foundations"]
 excerpt: "What computer science actually is, what it isn't, the big ideas that hold it together, and the many fields that grew out of it. The first post of a new series, written for anyone who wants to understand what's really going on under their code."
-visible: false
 ---
 
 Hi, and welcome.
