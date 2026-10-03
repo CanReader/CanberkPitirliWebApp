@@ -782,6 +782,11 @@ export default function BlogPost() {
                 <Link to={topicPath(post.category)} className="text-accent hover:underline underline-offset-4">
                   {post.category}
                 </Link>
+                {post.visible === false && (
+                  <span className="ml-2 rounded border border-amber-400/40 px-1.5 text-xs text-amber-300">
+                    Draft, only visible in dev
+                  </span>
+                )}
               </motion.nav>
 
               <h1 className="text-balance font-heading text-[2.1rem] font-bold leading-[1.12] tracking-[-0.02em] text-text md:text-[2.9rem]">

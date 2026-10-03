@@ -114,6 +114,9 @@ function Meta({ post, className = "" }) {
         {formatDate(post.date, { short: true })}
       </time>
       <span className="text-muted">{post.readingTime} min read</span>
+      {post.visible === false && (
+        <span className="rounded border border-amber-400/40 px-1.5 text-amber-300">Draft</span>
+      )}
       {read && (
         <motion.span
           className="inline-flex items-center gap-1 text-accent"

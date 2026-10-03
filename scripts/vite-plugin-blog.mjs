@@ -8,8 +8,8 @@
 //   virtual:blog-search   plain text of every post for full-text search.
 //                         Loaded on demand when the reader starts searching.
 //
-// Drafts (visible: false) are left out of all three, so their text is not
-// shipped. In dev, adding or editing a post file reloads the page.
+// Drafts (visible: false) are left out of all three in builds, so their text
+// is not shipped; the dev server includes them, marked as drafts. In dev, adding or editing a post file reloads the page.
 import { join } from "node:path";
 import { loadPosts, plainText, POSTS_DIR } from "./lib/posts.mjs";
 // Series are defined in this file; a mistake there should fail loudly.
@@ -37,7 +37,9 @@ export default function blogPlugin() {
     async load(id) {
       if (!id.startsWith("\0virtual:blog-")) return null;
       const name = id.slice(1);
-      const posts = loadPosts();
+      // Drafts (visible: false) show up under `npm run dev` so they can be read
+      // in the real layout, and are never part of a build.
+      const posts = loadPosts({ includeDrafts: Boolean(server) });
       // `vite build --watch` rebuilds when a post changes. The dev server has
       // its own reload hook below (it can't take a directory as a watch file).
       if (!server) {
