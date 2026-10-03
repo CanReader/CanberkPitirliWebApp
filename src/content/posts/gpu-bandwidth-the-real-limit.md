@@ -53,6 +53,12 @@ The depth buffer, the blending, all the overdraw happen inside a tiny on-chip bu
 
 On desktop these are mostly no-ops. On mobile, setting load and store actions correctly is often the single biggest performance win available, and getting them wrong can quietly double your memory traffic.
 
+Here's a typical deferred frame added up. It only counts render targets, so the real number is higher, but it's enough to see how resolution and frame rate multiply, and how much a tiled GPU keeps off the bus.
+
+```demo
+bandwidth
+```
+
 ## How to think about it
 
 When a frame is slow, ask "how many bytes did that cost?" before "how many instructions?". Smaller formats, fewer full-screen passes, fewer render target reads, coherent access patterns, correct load and store actions on tiled hardware. Those are where real time comes back.
