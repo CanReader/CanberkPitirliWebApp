@@ -54,7 +54,13 @@ export default function blogPlugin() {
         const problems = validateSeries(posts.map((p) => p.slug), drafts.map((p) => p.slug));
         if (problems.length) this.error(`Series definition problems:\n  ${problems.join("\n  ")}`);
         const index = posts.map(({ content, ...meta }) => meta);
-        return `export const postIndex = ${JSON.stringify(index)};`;
+        // Drafts that aren't in this build: titles only, so series can list
+        // them as coming soon. Nothing else about them is shipped.
+        const included = new Set(posts.map((p) => p.slug));
+        const draftTitles = Object.fromEntries(
+          drafts.filter((d) => !included.has(d.slug)).map((d) => [d.slug, d.title])
+        );
+        return `export const postIndex = ${JSON.stringify(index)};\nexport const draftTitles = ${JSON.stringify(draftTitles)};`;
       }
       if (name === CONTENT) {
         const entries = posts.map(
