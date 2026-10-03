@@ -1,7 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { posts, findSeries, seriesSlugs, seriesUrl } from "../data/posts";
+import { posts, findSeries, seriesSlugs, seriesUpcoming, seriesUrl } from "../data/posts";
 import Navbar from "../components/Navbar";
 import ScrollProgress from "../components/ScrollProgress";
 import BackToTop from "../components/BackToTop";
@@ -22,6 +22,40 @@ const bySlug = new Map(posts.map((p) => [p.slug, p]));
 
 function minutes(slugs) {
   return slugs.reduce((sum, s) => sum + (bySlug.get(s)?.readingTime ?? 0), 0);
+}
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+// "3 parts", "3 parts, 2 coming soon", or "2 coming soon".
+function partsLabel(published, upcoming) {
+  if (!published) return `${upcoming} coming soon`;
+  return upcoming ? `${plural(published, "part")}, ${upcoming} coming soon` : plural(published, "part");
+}
+
+// Difficulty, shown as three bars (one, two, or all three filled) plus the
+// word, so it reads at a glance and doesn't rely on color.
+const LEVEL_BARS = { beginner: 1, intermediate: 2, advanced: 3 };
+
+export function LevelBadge({ level, className = "" }) {
+  if (!level) return null;
+  const filled = LEVEL_BARS[level];
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-0.5 text-xs text-zinc-300 ${className}`}
+      title={`Difficulty: ${level}`}
+    >
+      <span aria-hidden="true" className="flex items-end gap-[2px]">
+        {[1, 2, 3].map((i) => (
+          <span
+            key={i}
+            className={`w-[3px] rounded-sm ${i <= filled ? "bg-accent" : "bg-border"}`}
+            style={{ height: 4 + i * 3 }}
+          />
+        ))}
+      </span>
+      <span className="capitalize">{level}</span>
+    </span>
+  );
 }
 
 function PartStatus({ slug }) {
@@ -47,7 +81,7 @@ function PartStatus({ slug }) {
   );
 }
 
-function PartList({ slugs }) {
+function PartList({ slugs = [], upcoming = [] }) {
   return (
     <ol className="divide-y divide-border/70">
       {slugs.map((slug, i) => {
@@ -77,6 +111,18 @@ function PartList({ slugs }) {
           </Reveal>
         );
       })}
+      {/* Parts not out yet: listed so the series reads as a roadmap. */}
+      {upcoming.map((title, j) => (
+        <Reveal as="li" key={`upcoming-${title}`} y={10} delay={Math.min(slugs.length + j, 6) * 0.04}>
+          <div className="flex items-start gap-4 py-4">
+            <span className="w-6 shrink-0 pt-0.5 text-right font-mono text-sm text-zinc-600">{slugs.length + j + 1}</span>
+            <p className="min-w-0 flex-1 font-heading font-semibold leading-snug text-zinc-500">{title}</p>
+            <span className="shrink-0 rounded-full border border-dashed border-border px-2 py-0.5 text-[11px] text-muted">
+              Coming soon
+            </span>
+          </div>
+        </Reveal>
+      ))}
     </ol>
   );
 }
@@ -84,19 +130,23 @@ function PartList({ slugs }) {
 // Sub-series section; recurses for deeper nesting, one heading level down.
 function SubSeries({ node, depth }) {
   const slugs = seriesSlugs(node);
+  const upcomingCount = seriesUpcoming(node).length;
   const readPosts = useReadPosts();
   const done = slugs.filter((s) => readPosts[s]).length;
   const Heading = depth === 0 ? "h2" : "h3";
   return (
     <section className={depth === 0 ? "mt-14" : "mt-10 border-l border-border pl-5 sm:pl-6"}>
       <Reveal className="mb-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-        <Heading className={`font-heading font-semibold tracking-tight text-text ${depth === 0 ? "text-xl md:text-2xl" : "text-lg"}`}>
-          <Link to={seriesUrl(node.id)} className="transition-colors hover:text-accent">
-            {node.title}
-          </Link>
-        </Heading>
+        <span className="flex flex-wrap items-center gap-3">
+          <Heading className={`font-heading font-semibold tracking-tight text-text ${depth === 0 ? "text-xl md:text-2xl" : "text-lg"}`}>
+            <Link to={seriesUrl(node.id)} className="transition-colors hover:text-accent">
+              {node.title}
+            </Link>
+          </Heading>
+          <LevelBadge level={node.level} />
+        </span>
         <span className="flex items-center gap-3 text-sm text-muted">
-          {done === slugs.length ? (
+          {slugs.length > 0 && done === slugs.length && !upcomingCount ? (
             <motion.span
               initial={{ opacity: 0, scale: 0.6 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -109,18 +159,24 @@ function SubSeries({ node, depth }) {
             </motion.span>
           ) : (
             <span>
-              {done > 0 ? `${done} of ${slugs.length} read` : `${slugs.length} ${slugs.length === 1 ? "part" : "parts"}`}
+              {done > 0 ? `${done} of ${slugs.length} read` : partsLabel(slugs.length, upcomingCount)}
             </span>
           )}
-          <span className="text-border" aria-hidden="true">/</span>
-          {minutes(slugs)} min
+          {slugs.length > 0 && (
+            <>
+              <span className="text-border" aria-hidden="true">/</span>
+              {minutes(slugs)} min
+            </>
+          )}
         </span>
       </Reveal>
       {done > 0 && <SeriesSteps slugs={slugs} readPosts={readPosts} onView className="mb-4 max-w-xs" />}
       {node.description && (
         <p className="mb-3 max-w-[60ch] text-sm leading-relaxed text-muted">{node.description}</p>
       )}
-      {node.slugs?.length > 0 && <PartList slugs={node.slugs} />}
+      {(node.slugs?.length > 0 || node.upcoming?.length > 0) && (
+        <PartList slugs={node.slugs} upcoming={node.upcoming} />
+      )}
       {(node.children ?? []).map((child) => (
         <SubSeries key={child.id} node={child} depth={depth + 1} />
       ))}
@@ -153,6 +209,7 @@ export default function SeriesPage() {
   const { node, path } = found;
   const parents = path.slice(0, -1);
   const slugs = seriesSlugs(node).filter((s) => bySlug.has(s));
+  const upcomingCount = seriesUpcoming(node).length;
   const done = slugs.filter((s) => readPosts[s]).length;
   const next = slugs.find((s) => !readPosts[s]);
   const nextPost = next ? bySlug.get(next) : null;
@@ -168,7 +225,7 @@ export default function SeriesPage() {
     <>
       <Seo
         title={node.title}
-        description={node.description ?? `A ${slugs.length}-part series by Canberk Pitirli.`}
+        description={node.description ?? `A series by Canberk Pitirli: ${partsLabel(slugs.length, upcomingCount)}.`}
         path={seriesUrl(node.id)}
       />
       <ScrollProgress />
@@ -191,6 +248,11 @@ export default function SeriesPage() {
               ))}
             </motion.nav>
 
+            {node.level && (
+              <motion.div variants={fadeUpChild} className="mb-4">
+                <LevelBadge level={node.level} />
+              </motion.div>
+            )}
             <h1 className="text-balance font-heading text-[2.1rem] font-bold leading-[1.12] tracking-[-0.02em] text-text md:text-[2.9rem]">
               <KineticText text={node.title} delay={0.1} stagger={0.05} />
             </h1>
@@ -216,11 +278,11 @@ export default function SeriesPage() {
                         You've read <AnimatedNumber value={done} /> of {slugs.length}
                       </>
                     ) : (
-                      `${slugs.length} ${slugs.length === 1 ? "part" : "parts"}`
+                      partsLabel(slugs.length, upcomingCount)
                     )}
                   </p>
                   <p className="text-muted">
-                    {minutes(slugs)} min total
+                    {slugs.length > 0 ? `${minutes(slugs)} min total` : "Being written now"}
                     {node.children?.length > 0 && (
                       <>
                         <span className="mx-2 text-border" aria-hidden="true">/</span>
@@ -250,7 +312,9 @@ export default function SeriesPage() {
           </motion.header>
 
           <div className="mt-12">
-            {node.slugs?.length > 0 && <PartList slugs={node.slugs} />}
+            {(node.slugs?.length > 0 || node.upcoming?.length > 0) && (
+              <PartList slugs={node.slugs} upcoming={node.upcoming} />
+            )}
             {(node.children ?? []).map((child) => (
               <SubSeries key={child.id} node={child} depth={0} />
             ))}

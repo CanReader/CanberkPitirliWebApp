@@ -4,7 +4,6 @@ date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Rendering"]
 excerpt: "Between the vertex shader and the pixel shader sits fixed hardware that clips triangles, culls the ones facing away, and decides exactly which pixels each triangle covers. It all comes down to three edge functions."
-visible: false
 ---
 
 Your vertex shader outputs three positions. Your pixel shader runs on pixels. Something in between has to answer a very precise question: given this triangle, which pixels does it cover? That something is the rasterizer, and the steps leading into it are worth knowing, because they explain a lot of strange artifacts you'll eventually hit.
@@ -54,6 +53,12 @@ bool inside(Vec2 v0, Vec2 v1, Vec2 v2, Vec2 p) {
 ```
 
 A pixel is inside the triangle when it's on the inner side of all three edges. The GPU evaluates this at the **center** of each pixel, (x + 0.5, y + 0.5), not at its corner.
+
+Try it. This is that exact test running on a small grid; drag the corners around and watch which centers make it in:
+
+```demo
+rasterizer
+```
 
 Hardware doesn't loop over pixels one by one, though. Edge functions are linear, so stepping one pixel to the right just adds a constant. That makes them perfect for testing whole blocks at once: the rasterizer first checks coarse tiles (say 8x8 pixels) against the triangle, throws away tiles that are fully outside, accepts tiles that are fully inside, and only does per-pixel tests on tiles cut by an edge.
 

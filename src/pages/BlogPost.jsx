@@ -16,6 +16,7 @@ import {
   Check,
   List,
   Link as LinkIcon,
+  Github,
   X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -23,7 +24,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
-import { posts, topicPath, seriesForPost, nextInSeries, seriesUrl } from "../data/posts";
+import { posts, topicPath, seriesForPost, nextInSeries, seriesUpcoming, seriesUrl } from "../data/posts";
 import { site } from "../data/siteConfig";
 import {
   formatDate,
@@ -50,6 +51,7 @@ import {
   STARTED_AT,
 } from "../lib/readPosts";
 import NotFound from "./NotFound";
+import Demo from "../components/demos/Demo";
 import { trackEvent } from "../lib/analytics";
 import { usePostContent, prefetchPost } from "../lib/postContent";
 
@@ -362,6 +364,8 @@ const mdComponents = {
     const className = child?.props?.className ?? "";
     const language = /language-([\w+#-]+)/.exec(className)?.[1] ?? null;
     const code = nodeText(child?.props?.children).replace(/\n$/, "");
+    // ```demo rasterizer quads  ->  an interactive demo instead of code.
+    if (language === "demo") return <Demo spec={code} />;
     return <CodeFigure language={language} code={code} />;
   },
   code: ({ children }) => (
@@ -471,6 +475,7 @@ function SeriesNav({ current }) {
   if (!at) return null;
   const { leaf, path, index } = at;
   const parts = leaf.slugs.map((slug) => posts.find((p) => p.slug === slug)).filter(Boolean);
+  const upcoming = leaf.upcoming ?? [];
   return (
     <Reveal as="nav" aria-label={`${leaf.title} series`} className="mb-10 rounded-xl border border-border bg-surface/40 p-5 font-sans">
       {/* Where this sub-series sits: C++ Tutorials / C++ Basics */}
@@ -486,7 +491,7 @@ function SeriesNav({ current }) {
       )}
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-sm text-muted">
-          Part {index + 1} of {parts.length} in{" "}
+          Part {index + 1} of {parts.length + upcoming.length} in{" "}
           <Link to={seriesUrl(leaf.id)} className="font-medium text-text transition-colors hover:text-accent">
             {leaf.title}
           </Link>
@@ -511,6 +516,13 @@ function SeriesNav({ current }) {
             )}
           </li>
         ))}
+        {upcoming.map((title, i) => (
+          <li key={title} className="flex items-start gap-3 text-sm leading-snug text-zinc-500">
+            <span className="w-4 shrink-0 font-mono text-zinc-600">{parts.length + i + 1}</span>
+            <span className="flex-1">{title}</span>
+            <span className="shrink-0 text-[11px] text-muted">soon</span>
+          </li>
+        ))}
       </ol>
     </Reveal>
   );
@@ -521,8 +533,20 @@ function SeriesNav({ current }) {
 function NextInSeries({ current }) {
   const nextSlug = nextInSeries(current.slug);
   const next = nextSlug && posts.find((p) => p.slug === nextSlug);
-  if (!next) return null;
   const here = seriesForPost(current.slug);
+  if (!next) {
+    // The last published part: say what's being written next, if anything.
+    const soon = here && (here.leaf.upcoming?.[0] ?? seriesUpcoming(here.root)[0]);
+    if (!soon) return null;
+    return (
+      <Reveal className="mb-10">
+        <div className="rounded-xl border border-dashed border-border p-5">
+          <span className="mb-1 block text-xs text-muted">Coming next in {here.root.title}</span>
+          <span className="font-heading text-lg font-semibold leading-snug text-zinc-400">{soon}</span>
+        </div>
+      </Reveal>
+    );
+  }
   const there = seriesForPost(next.slug);
   const label =
     there.leaf.id === here.leaf.id ? `Next in ${here.leaf.title}` : `Up next: ${there.leaf.title}`;
@@ -664,6 +688,22 @@ function CopyLinkButton() {
       <SwapIcon on={copied} size={14} idle={LinkIcon} />
       {copied ? "Copied" : "Copy link"}
     </button>
+  );
+}
+
+// Optional link to the code that goes with a post (`source` in its header).
+function SourceButton({ href }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => trackEvent("post_source_open", { page: window.location.pathname })}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted transition-colors hover:border-muted/50 hover:text-text active:scale-[0.98]"
+    >
+      <Github size={14} />
+      Source code
+    </a>
   );
 }
 
@@ -857,7 +897,10 @@ export default function BlogPost() {
                     </p>
                   </div>
                 </div>
-                <CopyLinkButton />
+                <div className="flex flex-wrap items-center gap-2">
+                  {post.source && <SourceButton href={post.source} />}
+                  <CopyLinkButton />
+                </div>
               </motion.div>
             </motion.div>
           </header>

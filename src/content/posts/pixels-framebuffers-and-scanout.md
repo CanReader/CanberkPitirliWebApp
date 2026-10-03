@@ -4,7 +4,6 @@ date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Rendering"]
 excerpt: "Before shaders, before triangles, there's a block of memory and a display controller reading it 60 times a second. That relationship explains tearing, vsync and most of what a swap chain is for."
-visible: false
 ---
 
 Every graphics tutorial starts with a triangle. I want to start one step earlier, because the triangle has to end up somewhere, and that somewhere explains a surprising amount of what you'll fight with later: tearing, vsync, input lag, and why every API makes you deal with something called a swap chain.

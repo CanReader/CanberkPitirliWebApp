@@ -4,7 +4,6 @@ date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Shaders"]
 excerpt: "GPUs never shade a single pixel. They shade 2x2 blocks so they can compute derivatives, which is how texture filtering picks a mip level. The side effect: a one-pixel triangle costs four pixels of work."
-visible: false
 ---
 
 Here's a fact that surprises almost everyone the first time: a GPU never runs your pixel shader on just one pixel. The smallest unit of pixel shading is a 2x2 block, a quad. Even if a triangle covers exactly one pixel, four shader invocations run.
@@ -28,6 +27,12 @@ So the GPU shades pixels in 2x2 quads, with all four lanes sitting next to each 
 
 Texture sampling does this automatically on the UVs you pass in, and uses the result to pick the mip level and the filtering footprint. You can also do it yourself on any value: `ddx`/`ddy` in HLSL, `dFdx`/`dFdy` in GLSL, `dfdx`/`dfdy` in Metal and WGSL. It's cheap because the neighbor's value is already sitting in the same wave. It's an approximation (one-pixel finite differences, shared within the quad), but it's what every texture lookup in a pixel shader relies on.
 
+Here it is on a real surface. Every 2x2 quad on this floor picks its own mip level from the UV differences between its pixels. Hover a pixel to see its quad and its level:
+
+```demo
+floor mips
+```
+
 Useful tricks that fall out of this:
 
 - **Flat normals for free**: the cross product of the derivatives of world position gives the face normal, no vertex normals needed.
@@ -44,6 +49,12 @@ For big triangles that's a thin border of waste along the edges, no big deal. Fo
 - a triangle covering 1 pixel runs 4 lanes: 75% wasted
 - a long thin triangle can touch many quads while covering only a few pixels in each
 
+Here's the same rasterizer from the last post, now showing quads. The hatched pixels are helper lanes. Hit "Tiny triangle" and look at the percentage:
+
+```demo
+rasterizer quads
+```
+
 This is the main reason dense geometry gets expensive faster than triangle count suggests. Once triangles shrink to a few pixels each, a large share of your pixel shading is helper lanes. It's a big part of why LODs exist, why very dense meshes are often rasterized in compute shaders by modern engines instead of the hardware path, and why "just add more triangles" eventually stops being free.
 
 ## Discard and derivatives
@@ -55,5 +66,11 @@ The other place you get in trouble is computing derivatives, or sampling texture
 ## Interpolation, briefly
 
 The values your vertex shader outputs (UVs, normals, colors) arrive at each pixel interpolated across the triangle, using the weights the rasterizer computed. And that interpolation is **perspective-correct**: it's done in a way that accounts for depth, otherwise textures on a floor would visibly bend as the camera moved. It's done by interpolating value/w and 1/w linearly and dividing at each pixel. You get it for free, but you'll implement it yourself if you ever write a software rasterizer, and it's a great "aha" moment when you do.
+
+Turn perspective correction off below and watch the checkers bend along the diagonal where the floor's two triangles meet. That wobble is exactly what PlayStation 1 games looked like, because that hardware interpolated affinely:
+
+```demo
+floor affine
+```
 
 Next: what happens after the pixel shader. The depth test, blending, and the output stage that can throw away your work before it even starts.

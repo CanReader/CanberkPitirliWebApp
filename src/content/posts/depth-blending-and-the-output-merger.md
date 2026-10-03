@@ -4,7 +4,6 @@ date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Rendering"]
 excerpt: "The depth test can run before your pixel shader and skip it entirely, or after it and waste the work. Which one you get depends on things like discard and depth writes. Plus how blending works and why transparency is hard."
-visible: false
 ---
 
 After the pixel shader produces a color, there's still one stage before anything lands in the framebuffer. It does the depth and stencil tests, blends the new color with what's already there, and writes the result. Different APIs give it different names (output merger, raster operations, per-fragment operations). The hardware units doing the work are usually called ROPs.

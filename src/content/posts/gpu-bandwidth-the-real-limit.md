@@ -4,7 +4,6 @@ date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Performance"]
 excerpt: "GPUs can do far more math than they can feed with data. Most rendering performance work is really about moving fewer bytes, and on mobile GPUs the whole architecture is built around that idea."
-visible: false
 ---
 
 If you take one idea away from this section of the series, make it this one: a GPU can compute far faster than it can move data. Math is cheap. Bytes are expensive. Most of the optimizations you'll ever make in a renderer are really ways of reading and writing less memory.

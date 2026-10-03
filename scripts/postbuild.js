@@ -22,7 +22,10 @@ const posts = loadPosts();
 const drafts = loadPosts({ includeDrafts: true }).filter((p) => p.visible === false);
 const seriesProblems = validateSeries(posts.map((p) => p.slug), drafts.map((p) => p.slug));
 // Series pages, the sitemap, and reaction targets only cover published posts.
-usePublishedPosts(posts.map((p) => p.slug));
+usePublishedPosts(
+  posts.map((p) => p.slug),
+  Object.fromEntries(drafts.map((d) => [d.slug, d.title]))
+);
 if (seriesProblems.length) {
   console.error(`Series definition problems:\n  ${seriesProblems.join("\n  ")}`);
   process.exit(1);

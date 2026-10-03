@@ -32,9 +32,13 @@ export const topicPath = (name) => {
 //     ],
 //   }
 //
-// Series can list draft posts (visible: false). Drafts show up in dev; in a
-// build they're left out, and a series whose posts are all drafts stays
-// hidden until one is published. See usePublishedPosts below.
+// Optional per series: `level` ("beginner" | "intermediate" | "advanced")
+// for a difficulty badge, and `planned: ["Title", ...]` for parts that aren't
+// written yet, shown as "Coming soon" so the series reads as a roadmap.
+//
+// Series can also list draft posts (visible: false). In dev they show up
+// normally. In a build they show as "Coming soon" with their title only, and
+// they join the reading order once published. See usePublishedPosts below.
 const allDefinedSeries = [
   {
     id: "graphics-programming",
@@ -44,6 +48,7 @@ const allDefinedSeries = [
       {
         id: "foundations",
         title: "Foundations",
+        level: "beginner",
         description: "What every graphics programmer should know before the first triangle: how a GPU turns commands into pixels, the math under every transform, color, and geometry.",
         children: [
           {
@@ -66,6 +71,7 @@ const allDefinedSeries = [
       {
         id: "shaders",
         title: "Shaders",
+        level: "intermediate",
         children: [
           {
             id: "hlsl",
@@ -78,11 +84,13 @@ const allDefinedSeries = [
       {
         id: "rendering-techniques",
         title: "Rendering techniques",
+        level: "intermediate",
         slugs: ["shadow-mapping-dx11", "deferred-vs-forward-rendering", "occlusion-culling-20-percent-vr"],
       },
       {
         id: "graphics-apis",
         title: "Graphics APIs",
+        level: "advanced",
         slugs: ["vulkan-vs-other-graphics-apis", "one-engine-four-graphics-backends"],
       },
     ],
@@ -95,24 +103,39 @@ const allDefinedSeries = [
   },
 ];
 
-// The tree the site actually shows: only posts that are available (published,
-// plus drafts in dev), with series that end up empty removed. Everything below
-// reads this, never allDefinedSeries.
-export let series = allDefinedSeries;
+export const LEVELS = ["beginner", "intermediate", "advanced"];
 
-function prune(nodes, available) {
+// The tree the site actually shows. Each node gets `slugs` (readable posts,
+// in reading order) and `upcoming` (titles of parts not out yet: drafts in a
+// build, then `planned`). Series with neither, at any depth, are removed.
+// Everything below reads this, never allDefinedSeries.
+export let series = allDefinedSeries.map(function withUpcoming(n) {
+  return { ...n, upcoming: n.planned ?? [], children: n.children?.map(withUpcoming) };
+});
+
+function prune(nodes, available, draftTitles) {
   return nodes
     .map((n) => ({
       ...n,
       slugs: n.slugs?.filter((s) => available.has(s)),
-      children: n.children && prune(n.children, available),
+      upcoming: [
+        ...(n.slugs ?? []).filter((s) => !available.has(s) && draftTitles[s]).map((s) => draftTitles[s]),
+        ...(n.planned ?? []),
+      ],
+      children: n.children && prune(n.children, available, draftTitles),
     }))
-    .filter((n) => (n.slugs?.length ?? 0) + (n.children?.length ?? 0) > 0);
+    .filter((n) => (n.slugs?.length ?? 0) + n.upcoming.length + (n.children?.length ?? 0) > 0);
 }
 
-// Call once with the posts that exist in this build (or dev session).
-export function usePublishedPosts(slugs) {
-  series = prune(allDefinedSeries, new Set(slugs));
+// Call once with the posts readable in this build (or dev session), plus
+// { slug: title } for drafts that aren't, so they can be listed as upcoming.
+export function usePublishedPosts(slugs, draftTitles = {}) {
+  series = prune(allDefinedSeries, new Set(slugs), draftTitles);
+}
+
+// Upcoming parts of a series, sub-series included.
+export function seriesUpcoming(node) {
+  return [...(node.upcoming ?? []), ...(node.children ?? []).flatMap(seriesUpcoming)];
 }
 
 export const seriesUrl = (id) => `/blog/series/${id}`;
@@ -171,7 +194,15 @@ export function validateSeries(postSlugs, draftSlugs = []) {
     if (ids.has(node.id)) problems.push(`${where}: duplicate series id "${node.id}"`);
     ids.add(node.id);
     if (!node.title) problems.push(`${where}: missing title`);
-    if (!node.slugs?.length && !node.children?.length) problems.push(`${where}: has no posts and no sub-series`);
+    if (!node.slugs?.length && !node.children?.length && !node.planned?.length) {
+      problems.push(`${where}: has no posts, planned parts, or sub-series`);
+    }
+    if (node.level !== undefined && !LEVELS.includes(node.level)) {
+      problems.push(`${where}: level must be one of ${LEVELS.join(", ")}`);
+    }
+    if (node.planned !== undefined && (!Array.isArray(node.planned) || node.planned.some((t) => typeof t !== "string" || !t.trim()))) {
+      problems.push(`${where}: planned must be a list of titles`);
+    }
     for (const slug of node.slugs ?? []) {
       if (!known.has(slug)) problems.push(`${where}: no post or draft called "${slug}"`);
       if (used.has(slug)) problems.push(`${where}: "${slug}" is already in series "${used.get(slug)}"`);
