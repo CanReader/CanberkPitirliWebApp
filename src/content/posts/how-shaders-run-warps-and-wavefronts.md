@@ -33,6 +33,12 @@ If every lane goes the same way, great, only one side runs. But if some lanes ta
 
 That's divergence, and it's why "branches are slow on GPUs" is half true. Branches are cheap when they're coherent, meaning neighboring pixels or vertices usually take the same path. They're expensive when the decision flickers from lane to lane. A branch on a value that's constant across a draw is basically free. A branch on per-pixel noise is not.
 
+Here's one wave of 32 lanes running a branch like the one above. Each row of the grid is one instruction the wave issued, and the dark cells are lanes that sat it out.
+
+```demo
+warp
+```
+
 ## The real trick: hiding latency
 
 Here's the part most explanations skip, and it's the more important one.
@@ -50,6 +56,12 @@ That only works if enough waves fit on the block at once. The number that fit is
 Each block has a fixed register file shared by all its resident waves. If your shader needs a lot of registers per lane (big structs, long-lived temporaries, unrolled loops), fewer waves fit. Fewer waves means less to switch to while waiting on memory, and the latency starts to show.
 
 That's the real reason a shader can get slower when you add code that never even runs: the compiler had to reserve more registers, occupancy dropped, and every texture fetch in the shader now hurts more. You don't need to count registers by hand, every vendor's profiler shows them, but you should know that "use fewer registers" and "fetch memory less often" are the same goal from two directions.
+
+Here's that trade in one place. The register count decides how many waves fit, and the top row shows whether the ALU has anything to do while they wait on memory.
+
+```demo
+warp latency
+```
 
 ## How to write shaders with this in mind
 

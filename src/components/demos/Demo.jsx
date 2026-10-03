@@ -29,6 +29,51 @@ export const demos = {
         : "Drag to turn the floor. With perspective correction off, the checkers bend along the diagonal where the two triangles meet.",
     component: lazy(() => import("./FloorDemo")),
   },
+  warp: {
+    title: "Inside a wave",
+    variants: ["", "latency"],
+    caption: (flags) =>
+      flags.has("latency")
+        ? "Drag the register count. More registers per thread means fewer waves fit, and with fewer waves the top row fills with idle gaps while every wave waits on memory."
+        : "Drag the dashed line to change which lanes take the if. Coherent sends all 32 lanes the same way. Alternating costs exactly as much as a single split, because the wave pays for both sides as soon as one lane disagrees.",
+    component: lazy(() => import("./WarpDemo")),
+  },
+  blend: {
+    title: "Blend order",
+    variants: [""],
+    caption: "Drag the panes in the draw order list, or press 1, 2 or 3 to draw one last. With over blending the overlaps change color when the order changes; switch to additive and they stop changing.",
+    component: lazy(() => import("./BlendDemo")),
+  },
+  bandwidth: {
+    title: "A frame's bandwidth budget",
+    variants: [""],
+    caption: "Change the resolution and frame rate, and switch passes on and off with 1 to 6. Then turn on Tiled: the dashed blocks are traffic that never leaves tile memory.",
+    component: lazy(() => import("./BandwidthDemo")),
+  },
+  tonemap: {
+    title: "Tone mapping a night street",
+    variants: ["", "clip"],
+    caption: (flags) =>
+      flags.has("clip")
+        ? "Coral pixels are values the operator pushed past 1.0, which the screen just cuts off. Drag the exposure and switch operators to see how much of the picture each one saves."
+        : "The street is stored in linear light, with lamps around 60 and the neon sign near 9. Point at a pixel, then switch operators and drag the exposure: clamping turns the red sign yellow and flattens the lit road, while the curves roll the highlights off instead.",
+    component: lazy(() => import("./ToneMapDemo")),
+  },
+  filter: {
+    title: "Nearest vs bilinear filtering",
+    variants: ["", "minify"],
+    caption: (flags) =>
+      flags.has("minify")
+        ? "Here one screen pixel covers about three texels but reads only one, so the pattern turns to noise and crawls as it moves. Turn on mipmaps and each pixel reads a smaller copy that already averaged those texels."
+        : "Each screen pixel samples the texture once. With bilinear on, the four nearest texel centers are blended by the weights shown below. Drag to pan, then zoom out past 1x and watch the detail fall apart until mipmaps step in.",
+    component: lazy(() => import("./FilterDemo")),
+  },
+  dither: {
+    title: "Banding and dithering",
+    variants: [""],
+    caption: "A soft light falloff stored at a few bits per channel. The left half just rounds and shows hard rings; the right half nudges each pixel by a small offset first, so single pixels are further off but any small patch averages out right, which is roughly what your eye does.",
+    component: lazy(() => import("./DitherDemo")),
+  },
   "dot-product": {
     title: "The dot product",
     variants: [""],
@@ -40,6 +85,27 @@ export const demos = {
     variants: [""],
     caption: "Drag the tips of the two basis vectors and the whole plane follows. The determinant is the area of the shaded cell, and goes negative when the F flips.",
     component: lazy(() => import("./MatrixDemo")),
+  },
+  spaces: {
+    title: "Following one vertex through every space",
+    variants: [""],
+    caption: "Step through the spaces with the number keys and keep an eye on the green corner. Its model coordinates never change, but by the time it reaches NDC the cube has turned into a thin, perspective-squashed slab near the far plane.",
+    component: lazy(() => import("./SpacesDemo")),
+  },
+  depth: {
+    title: "Where depth precision goes",
+    variants: [""],
+    caption: "The two surfaces start out z-fighting at 16 bits. Drag the near plane out a little and they separate, and notice how much less the far plane matters. Then try a 32-bit float with reversed Z.",
+    component: lazy(() => import("./DepthDemo")),
+  },
+  rotation: {
+    title: "Euler angles and quaternions",
+    variants: ["", "slerp"],
+    caption: (flags) =>
+      flags.has("slerp")
+        ? "The green plane is slerped and the coral outline lerps the three Euler angles. The dots mark equal steps in t: evenly spaced on the slerp path, bunched and stretched on the other. Press N to try other pairs."
+        : "Drag pitch all the way to 90 degrees. The outer and middle rings fold into one plane, and from then on yaw and roll spin the plane around the same axis.",
+    component: lazy(() => import("./RotationDemo")),
   },
   gamma: {
     title: "Blending in sRGB vs linear",

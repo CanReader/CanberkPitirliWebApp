@@ -48,13 +48,19 @@ When blending is enabled, the new color isn't simply written. The GPU reads the 
 result = src * srcFactor + dst * dstFactor
 ```
 
-Standard transparency is src times alpha plus dst times (1 - alpha). Additive blending (fire, glows) is src plus dst.
+Standard transparency is src times alpha plus dst times (1 - alpha). Additive blending (fire, glows) is src times alpha plus dst, so order stops mattering.
 
 Two things make blending expensive. It's a read-modify-write on the framebuffer for every pixel, doubling memory traffic. And it has to happen in submission order: when two triangles overlap, the result must be as if they were drawn in the order you issued them. The ROPs enforce that ordering, so blended pixels can't be freely reordered.
 
 ## Why transparency is genuinely hard
 
 Depth testing sorts opaque things for free because the closest one simply wins. Transparent surfaces don't work that way: you need to see all of them, combined in back-to-front order, and "over" blending gives different results in different orders.
+
+You can see it with three panes. Each one is blended over whatever is already in the framebuffer, so changing the draw order changes the colors where they overlap.
+
+```demo
+blend
+```
 
 So the depth buffer can't help. The classic approach: draw all opaque geometry first, then sort transparent objects by distance and draw them back to front with depth testing on but depth writing off. Sorting per object breaks down for intersecting or self-overlapping geometry, which is why order-independent transparency is still an active topic. For most games, per-object sorting plus some artist discipline is what ships.
 
