@@ -105,7 +105,7 @@ const allDefinedSeries = [
         title: "Introduction",
         level: "beginner",
         slugs: ["welcome-to-computer-science"],
-        planned: ["What Computer Science Actually Is", "How a Computer Runs Your Code, End to End"],
+        planned: ["A Short History of Computing", "How a Computer Runs Your Code, End to End"],
       },
       {
         id: "cs-data",
