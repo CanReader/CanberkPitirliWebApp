@@ -31,12 +31,38 @@ export const topicPath = (name) => {
 //       { id: "cpp-memory", title: "Memory", slugs: ["cpp-pointers", "cpp-raii"] },
 //     ],
 //   }
-export const series = [
+//
+// Series can list draft posts (visible: false). Drafts show up in dev; in a
+// build they're left out, and a series whose posts are all drafts stays
+// hidden until one is published. See usePublishedPosts below.
+const allDefinedSeries = [
   {
     id: "graphics-programming",
     title: "Graphics Programming",
     description: "From how a shader runs on the GPU to the rendering techniques and APIs built on top of it.",
     children: [
+      {
+        id: "foundations",
+        title: "Foundations",
+        description: "What every graphics programmer should know before the first triangle: how a GPU turns commands into pixels, the math under every transform, color, and geometry.",
+        children: [
+          {
+            id: "how-gpus-render",
+            title: "How GPUs render",
+            description: "From a draw call on the CPU to a pixel on screen, one hardware stage at a time.",
+            slugs: [
+              "pixels-framebuffers-and-scanout",
+              "what-a-draw-call-really-sends",
+              "gpu-front-end-from-commands-to-vertices",
+              "how-shaders-run-warps-and-wavefronts",
+              "clipping-and-rasterization",
+              "pixel-shading-in-2x2-quads",
+              "depth-blending-and-the-output-merger",
+              "gpu-bandwidth-the-real-limit",
+            ],
+          },
+        ],
+      },
       {
         id: "shaders",
         title: "Shaders",
@@ -68,6 +94,26 @@ export const series = [
     slugs: ["viewcam-devlog-chasing-milliseconds", "virtual-camera-directshow-vs-v4l2loopback"],
   },
 ];
+
+// The tree the site actually shows: only posts that are available (published,
+// plus drafts in dev), with series that end up empty removed. Everything below
+// reads this, never allDefinedSeries.
+export let series = allDefinedSeries;
+
+function prune(nodes, available) {
+  return nodes
+    .map((n) => ({
+      ...n,
+      slugs: n.slugs?.filter((s) => available.has(s)),
+      children: n.children && prune(n.children, available),
+    }))
+    .filter((n) => (n.slugs?.length ?? 0) + (n.children?.length ?? 0) > 0);
+}
+
+// Call once with the posts that exist in this build (or dev session).
+export function usePublishedPosts(slugs) {
+  series = prune(allDefinedSeries, new Set(slugs));
+}
 
 export const seriesUrl = (id) => `/blog/series/${id}`;
 
@@ -112,13 +158,14 @@ export function nextInSeries(slug) {
 }
 
 // Authoring checks, run by the build: returns a list of problems (empty when
-// the tree is valid). `postSlugs` are the published posts.
-export function validateSeries(postSlugs) {
-  const known = new Set(postSlugs);
+// the tree is valid). `postSlugs` are the published posts, `draftSlugs` the
+// drafts; a series may list either, but nothing that doesn't exist.
+export function validateSeries(postSlugs, draftSlugs = []) {
+  const known = new Set([...postSlugs, ...draftSlugs]);
   const problems = [];
   const ids = new Set();
   const used = new Map();
-  for (const { node, path } of allSeries()) {
+  for (const { node, path } of allSeries(allDefinedSeries)) {
     const where = path.map((n) => n.id).join(" / ");
     if (!node.id || !/^[a-z0-9-]+$/.test(node.id)) problems.push(`${where}: id must be lowercase letters, digits, and dashes`);
     if (ids.has(node.id)) problems.push(`${where}: duplicate series id "${node.id}"`);
@@ -126,7 +173,7 @@ export function validateSeries(postSlugs) {
     if (!node.title) problems.push(`${where}: missing title`);
     if (!node.slugs?.length && !node.children?.length) problems.push(`${where}: has no posts and no sub-series`);
     for (const slug of node.slugs ?? []) {
-      if (!known.has(slug)) problems.push(`${where}: unknown or unpublished post "${slug}"`);
+      if (!known.has(slug)) problems.push(`${where}: no post or draft called "${slug}"`);
       if (used.has(slug)) problems.push(`${where}: "${slug}" is already in series "${used.get(slug)}"`);
       used.set(slug, node.id);
     }

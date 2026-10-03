@@ -50,7 +50,8 @@ export default function blogPlugin() {
         // Cache-busted import: a plain one would keep validating the series
         // tree as it was when the dev server started.
         const { validateSeries } = await import(`${TAXONOMY}?t=${Date.now()}`);
-        const problems = validateSeries(posts.map((p) => p.slug));
+        const drafts = loadPosts({ includeDrafts: true }).filter((p) => p.visible === false);
+        const problems = validateSeries(posts.map((p) => p.slug), drafts.map((p) => p.slug));
         if (problems.length) this.error(`Series definition problems:\n  ${problems.join("\n  ")}`);
         const index = posts.map(({ content, ...meta }) => meta);
         return `export const postIndex = ${JSON.stringify(index)};`;

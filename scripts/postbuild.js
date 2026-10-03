@@ -11,7 +11,7 @@
 //   4. Emits dist/getprojects.json, the /getprojects endpoint
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { topics, allSeries, seriesSlugs, validateSeries } from "../src/data/blogTaxonomy.js";
+import { topics, allSeries, seriesSlugs, validateSeries, usePublishedPosts } from "../src/data/blogTaxonomy.js";
 import { loadPosts } from "./lib/posts.mjs";
 import { projects } from "../src/data/projects.js";
 import { site } from "../src/data/siteConfig.js";
@@ -19,7 +19,10 @@ import repositories from "../src/data/repositories.json" with { type: "json" };
 
 const posts = loadPosts();
 
-const seriesProblems = validateSeries(posts.map((p) => p.slug));
+const drafts = loadPosts({ includeDrafts: true }).filter((p) => p.visible === false);
+const seriesProblems = validateSeries(posts.map((p) => p.slug), drafts.map((p) => p.slug));
+// Series pages, the sitemap, and reaction targets only cover published posts.
+usePublishedPosts(posts.map((p) => p.slug));
 if (seriesProblems.length) {
   console.error(`Series definition problems:\n  ${seriesProblems.join("\n  ")}`);
   process.exit(1);
