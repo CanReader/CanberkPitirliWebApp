@@ -26,9 +26,18 @@
         });
       })();
 
+      // Visit any page with ?notrack once and this browser stops reporting to
+      // GA for good (?track undoes it), so the owner's visits stay out of the data.
+      var trackFlag = /[?&](no)?track(&|$)/.exec(location.search);
+      try {
+        if (trackFlag) trackFlag[1] ? localStorage.setItem("ga-notrack", "1") : localStorage.removeItem("ga-notrack");
+      } catch (e) {}
+      var gaOptOut = false;
+      try { gaOptOut = localStorage.getItem("ga-notrack") === "1"; } catch (e) {}
+
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
-      if (location.hostname === "canberkpitirli.com" || location.hostname === "www.canberkpitirli.com") {
+      if (!gaOptOut && (location.hostname === "canberkpitirli.com" || location.hostname === "www.canberkpitirli.com")) {
         var gaScript = document.createElement("script");
         gaScript.async = true;
         gaScript.src = "https://www.googletagmanager.com/gtag/js?id=G-3MJCE5KX4C";
