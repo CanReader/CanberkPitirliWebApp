@@ -7,6 +7,25 @@
 
     <!-- Google tag (gtag.js) — only on the production domain, so dev visits don't pollute the data -->
     <script>
+      // The server answers every page on its trailing-slash URL (LiteSpeed
+      // redirects /blog/x to /blog/x/). Push the same shape into history so
+      // in-app links, the address bar, and GA page paths all agree with it.
+      (function () {
+        function withSlash(url) {
+          if (typeof url !== "string" || url.charAt(0) !== "/") return url;
+          var cut = url.search(/[?#]/);
+          var path = cut < 0 ? url : url.slice(0, cut);
+          if (path === "/" || path.slice(-1) === "/" || /\.[a-z0-9]+$/i.test(path)) return url;
+          return path + "/" + (cut < 0 ? "" : url.slice(cut));
+        }
+        ["pushState", "replaceState"].forEach(function (name) {
+          var original = history[name];
+          history[name] = function (state, title, url) {
+            return original.call(this, state, title, withSlash(url));
+          };
+        });
+      })();
+
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       if (location.hostname === "canberkpitirli.com" || location.hostname === "www.canberkpitirli.com") {
