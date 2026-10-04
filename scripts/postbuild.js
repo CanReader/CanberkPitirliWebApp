@@ -105,20 +105,20 @@ writePage("/blog", {
   title: `Blog — ${site.author}`,
   description:
     "Thoughts on graphics programming, game development, C++, Rust, and systems design by Canberk Pitirli.",
-  url: `${site.url}/blog`,
+  url: `${site.url}/blog/`,
   image: `${site.url}/og/home.png`,
   jsonLd: {
     "@context": "https://schema.org",
     "@type": "Blog",
     name: `${site.author} — Blog`,
-    url: `${site.url}/blog`,
+    url: `${site.url}/blog/`,
     author: { "@type": "Person", name: site.author, url: site.url },
   },
 });
 
 // ── Blog topic pages ──
 for (const topic of topics) {
-  const url = `${site.url}/blog/topic/${topic.slug}`;
+  const url = `${site.url}/blog/topic/${topic.slug}/`;
   writePage(`/blog/topic/${topic.slug}`, {
     title: `${topic.name} posts — ${site.author}`,
     description: `${topic.blurb} Posts by ${site.author}.`,
@@ -129,14 +129,14 @@ for (const topic of topics) {
       "@type": "CollectionPage",
       name: `${topic.name} posts`,
       url,
-      isPartOf: { "@type": "Blog", url: `${site.url}/blog` },
+      isPartOf: { "@type": "Blog", url: `${site.url}/blog/` },
     },
   });
 }
 
 // ── Series pages ──
 for (const { node, path } of allSeries()) {
-  const url = `${site.url}/blog/series/${node.id}`;
+  const url = `${site.url}/blog/series/${node.id}/`;
   const count = seriesSlugs(node).length;
   const trail = path.length > 1 ? ` (part of ${path[0].title})` : "";
   writePage(`/blog/series/${node.id}`, {
@@ -149,10 +149,10 @@ for (const { node, path } of allSeries()) {
       "@type": "CollectionPage",
       name: node.title,
       url,
-      isPartOf: { "@type": "Blog", url: `${site.url}/blog` },
+      isPartOf: { "@type": "Blog", url: `${site.url}/blog/` },
       hasPart: seriesSlugs(node).map((slug) => ({
         "@type": "BlogPosting",
-        url: `${site.url}/blog/${slug}`,
+        url: `${site.url}/blog/${slug}/`,
       })),
     },
   });
@@ -160,7 +160,7 @@ for (const { node, path } of allSeries()) {
 
 // ── Blog posts ──
 for (const post of posts) {
-  const url = `${site.url}/blog/${post.slug}`;
+  const url = `${site.url}/blog/${post.slug}/`;
   writePage(`/blog/${post.slug}`, {
     title: `${post.title} — ${site.author}`,
     description: post.excerpt,
@@ -185,7 +185,7 @@ for (const post of posts) {
 
 // ── Project pages ──
 for (const project of projects) {
-  const url = `${site.url}/projects/${project.slug}`;
+  const url = `${site.url}/projects/${project.slug}/`;
   const image = project.preview.startsWith("http")
     ? project.preview
     : site.url + project.preview;
@@ -209,24 +209,24 @@ for (const project of projects) {
 // ── sitemap.xml ──
 const urls = [
   { loc: `${site.url}/`, lastmod: today, priority: "1.0" },
-  { loc: `${site.url}/blog`, lastmod: posts[0]?.date ?? today, priority: "0.8" },
+  { loc: `${site.url}/blog/`, lastmod: posts[0]?.date ?? today, priority: "0.8" },
   ...allSeries().map(({ node }) => ({
-    loc: `${site.url}/blog/series/${node.id}`,
+    loc: `${site.url}/blog/series/${node.id}/`,
     lastmod: posts.filter((p) => seriesSlugs(node).includes(p.slug))[0]?.date ?? today,
     priority: "0.6",
   })),
   ...topics.map((t) => ({
-    loc: `${site.url}/blog/topic/${t.slug}`,
+    loc: `${site.url}/blog/topic/${t.slug}/`,
     lastmod: posts.find((p) => p.category === t.name)?.date ?? today,
     priority: "0.6",
   })),
   ...posts.map((p) => ({
-    loc: `${site.url}/blog/${p.slug}`,
+    loc: `${site.url}/blog/${p.slug}/`,
     lastmod: p.date,
     priority: "0.7",
   })),
   ...projects.map((p) => ({
-    loc: `${site.url}/projects/${p.slug}`,
+    loc: `${site.url}/projects/${p.slug}/`,
     lastmod: today,
     priority: "0.6",
   })),
@@ -265,7 +265,7 @@ const rssItems = posts
   .map(
     (p) => `    <item>
       <title>${esc(p.title)}</title>
-      <link>${site.url}/blog/${p.slug}</link>
+      <link>${site.url}/blog/${p.slug}/</link>
       <guid isPermaLink="true">${site.url}/blog/${p.slug}</guid>
       <pubDate>${new Date(p.date).toUTCString()}</pubDate>
       <category>${esc(p.category)}</category>
@@ -278,7 +278,7 @@ const rss = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>${esc(site.author)} — Blog</title>
-    <link>${site.url}/blog</link>
+    <link>${site.url}/blog/</link>
     <description>${esc("Graphics programming, game development, C++, Rust, and systems design.")}</description>
     <language>en-us</language>
     <atom:link href="${site.url}/rss.xml" rel="self" type="application/rss+xml" />

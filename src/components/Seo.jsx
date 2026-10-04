@@ -29,7 +29,9 @@ export default function Seo({
   useEffect(() => {
     const fullTitle = title ? `${title} — ${site.author}` : site.title;
     const desc = description || site.description;
-    const url = site.url + path;
+    // Every page is served from a directory, so the server answers on the
+    // trailing-slash URL. Canonical must match it or Google sees a redirect.
+    const url = site.url + (path.endsWith("/") ? path : path + "/");
     const img = image
       ? image.startsWith("http")
         ? image
