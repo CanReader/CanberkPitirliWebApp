@@ -3,14 +3,21 @@ title: "Custom Memory Allocators in C++: Pool, Arena, and When to Use Each"
 date: "2025-04-08"
 category: "Performance"
 tags: ["C++", "Memory", "Tutorials"]
-excerpt: "malloc isn't the bottleneck people think it is, until it is. Here's when you actually need to write your own allocator and which pattern fits which problem."
+excerpt: "Arena, pool, or stack allocator? One table tells you which fits your problem, then the full C++ code for all three, as I wrote them for SleakEngine."
 ---
 
-The default allocator in C++ is excellent. malloc has been optimized for decades by people far smarter than most of us. For 90% of code you should not write your own. The performance difference between a custom allocator and malloc, on most workloads, is measurable but small.
+Short answer first, since that's probably what you came for:
 
-But if you're writing a game engine, a high-frequency trading system, or anything that allocates and frees thousands of times per frame, that small difference becomes the entire frame budget. This is when custom allocators matter.
+| Your allocation pattern | Use this | What an allocation costs |
+|---|---|---|
+| Scratch data that all dies at the end of the frame | Linear arena | Two integer operations and a bounds check |
+| Lots of same-size objects, created and destroyed at random times | Pool allocator | A few pointer operations, for both alloc and free |
+| Temporary data inside one function or call tree, freed in reverse order | Stack allocator | Same as an arena, plus a rewind |
+| Anything else | malloc, or mimalloc | Nothing new to maintain |
 
-I've written three of these for SleakEngine. Here's when each one is the right call.
+I've written all three for SleakEngine. The complete code for each is below, and none of them is longer than a screen.
+
+One honest caveat before the code: malloc is excellent, and most code should never replace it. These patterns pay off when you allocate thousands of times per frame, which is exactly what a game engine, a trading system, or a physics step does. At that rate, the gap between a few cycles and a few hundred cycles per allocation stops being small.
 
 ## What's Actually Wrong with malloc for Games
 
