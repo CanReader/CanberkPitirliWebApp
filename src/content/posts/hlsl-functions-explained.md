@@ -416,7 +416,7 @@ float4 VS_Main(float3 pos : POSITION) : SV_Position
 
 float4 PS_Main(float4 screenPos : SV_Position) : SV_Target
 {
-    // screenPos here is screen-space: .xy in pixels, .z is depth, .w is 1/clipW
+    // screenPos here is screen-space: .xy in pixels, .z is depth, .w is clip-space w
     return float4(screenPos.xy / screenResolution, 0, 1);
 }
 ```
