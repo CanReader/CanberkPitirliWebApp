@@ -1,5 +1,6 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { useScroll, useMotionValueEvent } from "framer-motion";
+import { trackEvent } from "./analytics";
 
 // Reading state, kept in the reader's own browser only. Two small stores:
 //   blog:read      { slug: ISO date }   posts the reader finished
@@ -140,6 +141,10 @@ export function useFinishTracking(slug, endRef, enabled) {
       if (document.visibilityState === "visible") elapsed.current += now - last;
       last = now;
       if (atEnd && seenAway && elapsed.current >= needed) {
+        // GA's built-in 90% scroll event fires before post content loads, so
+        // this is the real "finished reading" signal. Seconds separate a
+        // skim from a read.
+        trackEvent("post_read", { post: slug, seconds: Math.round(elapsed.current / 1000) });
         markRead(slug);
         rememberJustFinished(slug);
         stop();
