@@ -14,7 +14,7 @@ const timeline = [
     highlights: [
       "Fullstack ownership: UI, APIs, and the data layer behind them",
       "TypeScript and React in production, shipping daily",
-      "Relocating to Japan for the company in September 2026",
+      "Working closely with a small, distributed product team",
     ],
     techs: ["TypeScript", "React", "PostgreSQL", "Docker"],
   },
