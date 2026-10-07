@@ -3,7 +3,7 @@ title: "Why I Was Inactive for a While"
 date: "2026-08-06"
 category: "Career"
 tags: ["Freelance", "ViewCam", "Unreal Engine"]
-excerpt: "The blog went quiet for three months and a few people actually checked if I was okay. I was okay. I was just buried under two jobs, a product launch, a Play Store approval, and a suitcase I need to pack for Japan. Let me explain."
+excerpt: "The blog went quiet for three months and a few people actually checked if I was okay. I was okay. I was just buried under two jobs, a product launch, and a Play Store approval. Let me explain."
 featured: true
 ---
 
@@ -26,8 +26,6 @@ I'm happy to report the plugin is done and it works exactly as intended. Mountai
 While the terrain work was in full swing, another door opened. Creatant reached out. And this is, without exaggeration, the most important opportunity I've ever gotten. I've shipped Steam games, won a contest, taught a few hundred students, and none of it made my phone shake in my hand the way that first conversation did.
 
 Here's the part where I tell you all about what we're building. Except I won't, because I can't, and honestly there's something enjoyable about being the guy who says "I could tell you, but then I'd have to ask legal." What I can say: I joined as a fullstack software engineer, and after a decade of identifying as a C++ engine person, I now ship across the entire stack every single day. The morning-to-evening context switch is real. Before lunch I'm thinking in heightfields and cache lines. After dinner I'm in a production web platform wondering why a div is 3 pixels to the left. Both problems get the same brain. The brain is coping.
-
-And one more thing: in September I'm going to Japan for Creatant. A serious chunk of these three months went into getting ready for that, which is its own part-time job. Documents, logistics, and a growing collection of browser tabs about how to not embarrass myself in a Japanese office. More on all of this when it happens.
 
 ## ViewCam Is Live on Google Play
 
@@ -59,7 +57,7 @@ For years my answer to "what do you write" was two words: "C++, engines." That's
 
 Silence on a blog says nothing about output. My commit history from these three months is the loudest it has ever been, even if half the messages are "fix", "actual fix", and "fix for real this time".
 
-Two studios trusted me with their work, and one of those turned into the biggest role of my career. One product is live on Google Play with real users. Another is approved and on the way. There's a flight to Japan on the horizon and a checklist that keeps growing.
+Two studios trusted me with their work, and one of those turned into the biggest role of my career. One product is live on Google Play with real users. Another is approved and on the way.
 
 I'm proud of this stretch. Genuinely, unashamedly proud. And now that I've remembered the blog exists, I have about six drafts worth of technical material from these months alone.
 

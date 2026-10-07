@@ -25,7 +25,7 @@ export const career = {
       role: "Fullstack Software Engineer",
       company: "Creatant",
       employment_type: "full-time",
-      location: "Remote, relocating to Japan",
+      location: "Remote",
       start: "2026-05",
       end: null,
       current: true,
@@ -34,13 +34,13 @@ export const career = {
       confidential_reason: "Product is unreleased. Most of the work is not public yet.",
       summary:
         "Fullstack engineer on a production web platform, owning features end to end across TypeScript and React on the front end and the backend and infrastructure behind them. The largest role of my career so far.",
-      metrics: ["Shipping to production daily", "Relocating to Japan for the company in September 2026"],
+      metrics: ["Shipping to production daily"],
       keywords: ["TypeScript", "React", "PostgreSQL", "Docker", "fullstack", "REST API", "production", "web platform", "SaaS", "agile"],
       role_relevance: { fullstack: 5, frontend: 5, backend: 5, devops: 3 },
       cv_bullets: [
         "Own features end to end on a production web platform, from React and TypeScript interfaces through the APIs and PostgreSQL data model behind them.",
         "Ship to production daily as part of a small team, taking features from specification through implementation, review and release without handoff.",
-        "Relocating to Japan with the company in September 2026, working across time zones and cultures on a distributed product team.",
+        "Work across time zones and cultures on a distributed product team.",
       ],
       transferable_framing: {
         backend: "Current commercial fullstack role: designing APIs and data models for a live product, not prototypes.",
@@ -555,7 +555,7 @@ export const career = {
   personal: {
     location: "Kırklareli, Turkey",
     relocation:
-      "Open to relocation worldwide. Relocating to Japan with Creatant in September 2026. Family in Berlin, Germany.",
+      "Open to relocation worldwide. Family in Berlin, Germany.",
     work_modes: ["on-site", "hybrid", "remote"],
     spoken_languages: [
       { language: "Turkish", level: "Native" },
@@ -571,7 +571,7 @@ export const career = {
       "Built a complete cross-platform game engine from scratch in C++23 with four graphics backends, and shipped a real game on it",
       "Implemented a deep learning framework, a Raft consensus store, a Vulkan renderer and a software rasterizer entirely from first principles",
       "Teaches advanced DirectX 11 and WPF to 200+ students at a 4.8/5 rating",
-      "Currently a fullstack engineer on a production web platform, relocating to Japan in September 2026",
+      "Currently a fullstack engineer on a production web platform",
     ],
   },
 };
