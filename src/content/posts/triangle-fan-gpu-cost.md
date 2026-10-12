@@ -6,7 +6,7 @@ tags: ["GPU", "Blender", "Performance", "Shaders"]
 excerpt: "I measured a 64-sided cap: Triangle Fan fill shades about 40% more than an N-gon cap triangulated by Blender's own modifier. Interactive demo inside."
 ---
 
-A few days ago someone on r/blender asked a good question: [why does modern 3D art tolerate the fan pattern?](https://old.reddit.com/r/blender/comments/1x3a38s/why_does_modern_3d_art_tolerate_the_fan_pattern/) And someone in the thread answered it by linking my post on [why pixel shading happens in 2x2 quads](/blog/pixel-shading-in-2x2-quads/).
+A few days ago someone on r/blender asked a good question: [why does modern 3D art tolerate the fan pattern?](https://www.reddit.com/r/blender/comments/1x3a38s/why_does_modern_3d_art_tolerate_the_fan_pattern/) And someone in the thread answered it by linking my post on [why pixel shading happens in 2x2 quads](/blog/pixel-shading-in-2x2-quads/).
 
 That's the right answer, but it's half of one. So I measured it.
 
