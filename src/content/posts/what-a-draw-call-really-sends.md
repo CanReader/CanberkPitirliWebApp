@@ -1,5 +1,5 @@
 ---
-title: "What a Draw Call Really Sends to the GPU"
+title: "A Draw Call Doesn't Draw Anything (Here's What It Actually Sends)"
 date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Performance"]

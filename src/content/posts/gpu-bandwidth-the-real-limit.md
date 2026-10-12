@@ -1,5 +1,5 @@
 ---
-title: "Bandwidth Is the Real Limit: Memory, Caches and Tiled GPUs"
+title: "Your GPU Is Waiting on Memory, Not Math"
 date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Performance"]
