@@ -1,5 +1,5 @@
 ---
-title: "Clipping and Rasterization: Turning Triangles into Pixels"
+title: "The GPU Decides Which Pixels a Triangle Covers with Three Edge Functions"
 date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Rendering"]

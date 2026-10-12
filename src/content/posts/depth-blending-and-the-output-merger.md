@@ -1,5 +1,5 @@
 ---
-title: "Depth, Blending and the Last Stage of the Pipeline"
+title: "One discard Can Make the GPU Shade Pixels It Will Throw Away"
 date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Rendering"]

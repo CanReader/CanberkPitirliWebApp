@@ -1,5 +1,5 @@
 ---
-title: "Pixels, Framebuffers and Scanout: Where a Frame Actually Lives"
+title: "Your Monitor Reads Memory 60 Times a Second (and That's Why Screens Tear)"
 date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Rendering"]

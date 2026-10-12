@@ -1,5 +1,5 @@
 ---
-title: "Inside the GPU Front End: From Commands to Vertices"
+title: "Your Index Order Decides How Many Vertices the GPU Shades"
 date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Rendering"]

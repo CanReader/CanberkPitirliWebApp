@@ -1,5 +1,5 @@
 ---
-title: "How Shaders Run: Warps, Wavefronts and Hiding Latency"
+title: "Your Shader Runs 32 or 64 Copies at Once (and a Branch Can Cost You Both Paths)"
 date: "2026-10-03"
 category: "Graphics"
 tags: ["GPU", "Foundations", "Shaders"]
