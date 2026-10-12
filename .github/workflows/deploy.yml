@@ -33,4 +33,19 @@ jobs:
           HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
           HOSTINGER_PASS: ${{ secrets.HOSTINGER_PASS }}
           HOSTINGER_REMOTE_DIR: ${{ secrets.HOSTINGER_REMOTE_DIR }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
         run: npm run deploy
+
+      # The mirror deletes server files missing from dist/, so a deploy without
+      # the DB secrets removes api/config.php and reactions break silently.
+      - name: Check reactions API
+        run: |
+          sleep 5
+          body=$(curl -s "https://canberkpitirli.com/api/reactions.php?target=post:deploy-check")
+          if echo "$body" | grep -q "not_configured"; then
+            echo "Reactions API is not configured after deploy"
+            exit 1
+          fi
