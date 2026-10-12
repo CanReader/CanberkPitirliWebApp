@@ -20,6 +20,12 @@ export const demos = {
         : "Drag a corner. Point at any pixel to see its three edge weights; it's drawn only when none of them is negative. Scan replays the test pixel by pixel.",
     component: lazy(() => import("./RasterizerDemo")),
   },
+  fan: {
+    title: "One disk, two triangulations",
+    variants: [""],
+    caption: "Both versions cover exactly the same pixels. Each 2x2 quad is tinted by how many triangles shaded it: green once, red four times. Switch between the fan and max area, press N to add sides, and point at a quad near the center.",
+    component: lazy(() => import("./FanDemo")),
+  },
   floor: {
     title: "Texturing a floor",
     variants: ["", "affine", "mips"],
