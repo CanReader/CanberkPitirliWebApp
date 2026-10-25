@@ -82,6 +82,15 @@ const allDefinedSeries = [
         ],
       },
       {
+
+        id: "vulkan-tutorials",
+        title: "Vulkan Tutorials",
+        level: "advanced",
+        description: "Building a Vulkan renderer in C++ from an empty folder, one piece of the API at a time.",
+        slugs: ['vulkan-instance-and-devices'],
+        planned: ["Swapchains and Presentation", "Render Passes and Pipelines", "Synchronization"],
+      },
+      {
         id: "rendering-techniques",
         title: "Rendering techniques",
         level: "intermediate",
