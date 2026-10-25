@@ -369,8 +369,11 @@ const mdComponents = {
     if (language === "demo") return <Demo spec={code} />;
     return <CodeFigure language={language} code={code} />;
   },
+  // Long identifiers like VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR
+  // are wider than a phone screen, so inline code may break mid-word rather
+  // than push the page sideways.
   code: ({ children }) => (
-    <code className="rounded-md border border-border bg-surface px-[0.35em] py-[0.1em] font-mono text-[0.82em] text-zinc-100">
+    <code className="rounded-md border border-border bg-surface px-[0.35em] py-[0.1em] font-mono text-[0.82em] text-zinc-100 [box-decoration-break:clone] [overflow-wrap:anywhere]">
       {children}
     </code>
   ),
