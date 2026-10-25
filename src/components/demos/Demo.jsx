@@ -119,6 +119,12 @@ export const demos = {
     caption: "The same two colors mixed two ways. Mixing the stored sRGB values goes dark and muddy in the middle; mixing in linear light and converting back does not.",
     component: lazy(() => import("./GammaDemo")),
   },
+  "vulkan-setup": {
+    title: "Setting up Vulkan, step by step",
+    variants: [""],
+    caption: "Each arrow points from what a call needs to what it makes. Press N to step through the setup and watch which objects each call depends on, or click any box to jump to it. Then turn on the teardown order: everything is destroyed in reverse, children before parents.",
+    component: lazy(() => import("./VulkanSetupDemo")),
+  },
 };
 
 export function parseDemoSpec(spec) {
