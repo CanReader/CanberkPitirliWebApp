@@ -23,6 +23,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import remarkCenter from "../lib/remarkCenter";
 import "katex/dist/katex.min.css";
 import { posts, topicPath, seriesForPost, nextInSeries, seriesUpcoming, seriesUrl } from "../data/posts";
 import { site } from "../data/siteConfig";
@@ -925,7 +926,7 @@ export default function BlogPost() {
                 className="article-grid article-body"
               >
                 <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkMath]}
+                  remarkPlugins={[remarkGfm, remarkMath, remarkCenter]}
                   rehypePlugins={[rehypeKatex]}
                   components={mdComponents}
                 >

@@ -70,6 +70,7 @@ export function plainText(content) {
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/\$\$[\s\S]*?\$\$/g, " ")
     .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^:::\w*[ \t]*$/gm, "")
     .replace(/[*_`>|]/g, "")
     .replace(/\s+/g, " ")
     .trim();
