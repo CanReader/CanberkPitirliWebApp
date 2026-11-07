@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1140 450" width="1140" height="450" font-family="Inter, system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <defs>
+    <marker id="gray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#71717A"/></marker>
+    <marker id="blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7AA2F7"/></marker>
+    <marker id="orange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#F5B454"/></marker>
+  </defs>
+
+  <rect width="1140" height="450" fill="#111114"/>
+
+  <!-- time axis -->
+  <line x1="210" y1="28" x2="1110" y2="28" stroke="#3F3F46" stroke-width="1.5" marker-end="url(#gray)"/>
+  <text x="210" y="20" font-size="13" fill="#71717A">time</text>
+
+  <!-- lanes -->
+  <rect x="200" y="50" width="925" height="64" rx="10" fill="#16161A"/>
+  <rect x="200" y="170" width="925" height="64" rx="10" fill="#16161A"/>
+  <rect x="200" y="290" width="925" height="64" rx="10" fill="#16161A"/>
+  <text x="24" y="87" font-size="17" font-weight="600" fill="#E4E4E7">CPU</text>
+  <text x="24" y="200" font-size="17" font-weight="600" fill="#E4E4E7">GPU</text>
+  <text x="24" y="221" font-size="13" fill="#A1A1AA">graphics queue</text>
+  <text x="24" y="320" font-size="17" font-weight="600" fill="#E4E4E7">Presentation</text>
+  <text x="24" y="341" font-size="17" font-weight="600" fill="#E4E4E7">engine</text>
+
+  <!-- CPU boxes -->
+  <g font-size="15" fill="#E4E4E7" text-anchor="middle">
+    <rect x="210" y="60" width="160" height="44" rx="8" fill="#1C1C21" stroke="#52525B"/>
+    <text x="290" y="87">wait for frameDone</text>
+    <rect x="385" y="60" width="135" height="44" rx="8" fill="#1C1C21" stroke="#52525B"/>
+    <text x="452" y="87">acquire image</text>
+    <rect x="535" y="60" width="150" height="44" rx="8" fill="#1C1C21" stroke="#52525B"/>
+    <text x="610" y="87">record commands</text>
+    <rect x="700" y="60" width="85" height="44" rx="8" fill="#1C1C21" stroke="#52525B"/>
+    <text x="742" y="87">submit</text>
+    <rect x="800" y="60" width="90" height="44" rx="8" fill="#1C1C21" stroke="#52525B"/>
+    <text x="845" y="87">present</text>
+    <rect x="960" y="60" width="155" height="44" rx="8" fill="none" stroke="#52525B" stroke-dasharray="5 4"/>
+    <text x="1037" y="80" font-size="13" fill="#A1A1AA">next frame:</text>
+    <text x="1037" y="97" font-size="13" fill="#A1A1AA">wait for frameDone</text>
+  </g>
+
+  <!-- GPU boxes -->
+  <g font-size="15" fill="#E4E4E7" text-anchor="middle">
+    <rect x="700" y="180" width="190" height="44" rx="8" fill="#1C1C21" stroke="#52525B"/>
+    <text x="795" y="207">wait for imageAvailable</text>
+    <rect x="925" y="180" width="190" height="44" rx="8" fill="#1C1C21" stroke="#34D399"/>
+    <text x="1020" y="207">barrier, clear, barrier</text>
+  </g>
+
+  <!-- presentation engine boxes -->
+  <g font-size="15" fill="#E4E4E7" text-anchor="middle">
+    <rect x="385" y="300" width="170" height="44" rx="8" fill="#1C1C21" stroke="#52525B"/>
+    <text x="470" y="327">image becomes free</text>
+    <rect x="925" y="300" width="190" height="44" rx="8" fill="#1C1C21" stroke="#52525B"/>
+    <text x="1020" y="327">show it at next refresh</text>
+  </g>
+
+  <!-- calls that ask for something -->
+  <g fill="none" stroke="#71717A" stroke-width="1.5" stroke-dasharray="5 4">
+    <path d="M 452 104 V 295" marker-end="url(#gray)"/>
+    <path d="M 742 104 V 175" marker-end="url(#gray)"/>
+    <path d="M 845 104 V 142 H 907 V 262 H 960 V 295" marker-end="url(#gray)"/>
+  </g>
+
+  <!-- semaphores -->
+  <g fill="none" stroke="#7AA2F7" stroke-width="2.2">
+    <path d="M 555 322 H 760 V 229" marker-end="url(#blue)"/>
+    <path d="M 1010 224 V 295" marker-end="url(#blue)"/>
+  </g>
+  <text x="575" y="314" font-size="14" fill="#7AA2F7">imageAvailable</text>
+  <text x="1018" y="266" font-size="14" fill="#7AA2F7">renderFinished</text>
+
+  <!-- fence -->
+  <path d="M 1075 180 V 109" fill="none" stroke="#F5B454" stroke-width="2.2" marker-end="url(#orange)"/>
+  <text x="1066" y="149" font-size="14" fill="#F5B454" text-anchor="end">frameDone</text>
+
+  <!-- legend -->
+  <g font-size="14" fill="#A1A1AA">
+    <line x1="210" y1="402" x2="250" y2="402" stroke="#7AA2F7" stroke-width="2.2"/>
+    <text x="260" y="407">semaphore: the GPU or the screen waits for it</text>
+    <line x1="610" y1="402" x2="650" y2="402" stroke="#F5B454" stroke-width="2.2"/>
+    <text x="660" y="407">fence: the CPU waits for it</text>
+    <line x1="210" y1="430" x2="250" y2="430" stroke="#71717A" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text x="260" y="435">a call that asks for something</text>
+  </g>
+</svg>
