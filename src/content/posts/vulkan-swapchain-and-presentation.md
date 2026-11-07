@@ -78,7 +78,7 @@ VkSurfaceFormatKHR chooseSurfaceFormat(VkPhysicalDevice gpu, VkSurfaceKHR surfac
 
 A surface format is two things together: how each pixel is stored, and which color space the screen expects.
 
-`VK_FORMAT_B8G8R8A8_SRGB` means blue, green, red and alpha, 8 bits each, in that order. The `SRGB` at the end is the important part. Our colors are calculated in linear light, but screens expect sRGB values. With an sRGB format, the GPU converts every color for us when it writes it to the image, so the colors look right without us doing any math. `VK_COLOR_SPACE_SRGB_NONLINEAR_KHR` says the screen expects normal sRGB, which is what almost every monitor uses.
+`VK_FORMAT_B8G8R8A8_SRGB` means blue, green, red and alpha, 8 bits each, in that order. The `SRGB` at the end is the important part. Our colors are calculated in linear light, but screens expect sRGB values. With an sRGB format, the GPU converts every color for us when it writes it to the image, so the colors look right without us doing any math. What if you pick `VK_FORMAT_B8G8R8A8_UNORM` instead? Then the GPU writes our numbers as they are, the screen still reads them as sRGB, and everything looks darker than it should. `VK_COLOR_SPACE_SRGB_NONLINEAR_KHR` says the screen expects normal sRGB, which is what almost every monitor uses.
 
 `vkGetPhysicalDeviceSurfaceFormatsKHR` uses the same "call twice" pattern as everything else, so our `enumerate` template from part one handles it. `std::ranges::find_if` (C++20) goes through the list and returns the first format where the lambda says `true`, or `formats.end()` if there's none. If our favorite format isn't there, we just take the first one in the list. Every surface supports at least one, so there's always a first one.
 
@@ -111,6 +111,26 @@ You can see the difference in the demo below. It runs much slower than a real sc
 ```demo
 present-modes
 ```
+
+### Which one should you use?
+
+If you're confused about `IMMEDIATE` right now, good, you're paying attention. If it can tear the picture, why does it even exist?
+
+Because it has the lowest latency of the three. With `FIFO`, a finished frame waits in line, sometimes for two refreshes, so what you see on the screen is always a little bit old. With `IMMEDIATE`, it goes out right away. If you play competitive shooters, this is exactly what "V-Sync off" means in the settings menu, and a lot of players happily accept a bit of tearing for a game that reacts faster to their mouse. When a game runs at a few hundred frames per second, the frames above and below a tear are almost the same picture anyway, so the tear is hard to notice.
+
+It's also the honest mode for measuring. `FIFO` limits you to the refresh rate, so a frame that takes 2 milliseconds and a frame that takes 6 milliseconds both show up as 144 fps. When you want to know how fast your renderer really is, turn V-Sync off and look at the real number.
+
+And there's one more case. If your game can't keep up with the screen, `FIFO` makes every late frame wait for the next refresh, and the motion starts to stutter. Some players prefer a tear over a stutter, and `IMMEDIATE` gives them that choice.
+
+One thing that might surprise you: in a normal window on a modern desktop, you'll probably never see `IMMEDIATE` tear. The compositor, which is the part of KDE, GNOME or Windows that puts all the windows together into one picture, does the final step itself. Tearing mostly shows up when a game runs in fullscreen. And if you have a variable refresh rate monitor (G-Sync or FreeSync), the monitor waits for your frame instead of the other way around, which takes most of the pain out of this whole choice. I wrote a bit about that in [the monitor post](/blog/pixels-framebuffers-and-scanout/).
+
+So why not use `MAILBOX` for everything, since it doesn't tear and doesn't wait? Because it keeps the GPU busy all the time, which means more power, more heat and a louder laptop, and because not every GPU and platform offers it. Only `FIFO` is guaranteed, so you always need it as a fallback anyway.
+
+| Mode | Pick it when | What game settings call it |
+|---|---|---|
+| `FIFO` | You don't have a reason to pick something else. Always available, never tears, keeps laptops cool. | V-Sync on |
+| `MAILBOX` | You want low latency without tearing, and you don't mind the GPU working all the time. | Close to NVIDIA's Fast Sync |
+| `IMMEDIATE` | You want the lowest latency and tearing is OK, or you're measuring how fast your renderer really is. | V-Sync off |
 
 For this series I use `FIFO`. It works on every GPU, it never tears, and it doesn't make your laptop hot for nothing:
 
@@ -213,6 +233,8 @@ Swapchain createSwapchain(VkPhysicalDevice gpu, VkDevice device, VkSurfaceKHR su
 
 `minImageCount` is how many images we want. The surface tells us the minimum, and we ask for one more. With only the minimum, we'd sometimes have to wait for the driver to give an image back before we could start drawing. My GPU's minimum is 2, so we get 3 images, which is classic triple buffering. `maxImageCount` is the limit on the other side, and 0 is a special value that means there's no limit, so we only use `std::min` when there is one.
 
+So why not ask for 8 images, if more images means less waiting? Because with `FIFO`, more images also means more finished frames waiting in line, so what you see on the screen gets older, and your game feels slower to react. Every image also costs memory: a 1920x1080 image with 4 bytes per pixel is about 8 MB. One more than the minimum is the usual sweet spot.
+
 Most of the fields are simple once you know what they mean:
 
 `imageExtent` and `imageFormat` are the size and format we picked. `imageArrayLayers` is 1. It's only more than 1 for things like VR, where one image has a layer for each eye.
@@ -274,7 +296,7 @@ Synchronization is going to get a whole part later in this series, because it's 
 
 The CPU and the GPU run at the same time, and neither of them waits for the other unless we tell them to. Vulkan gives us two tools for that.
 
-A fence is a signal from the GPU to the CPU. The GPU signals it when some work is done, and the CPU can wait for it. We use one fence, `frameDone`, so the CPU doesn't start recording the next frame into a command buffer the GPU is still running.
+A fence is a signal from the GPU to the CPU. The GPU signals it when some work is done, and the CPU can wait for it. We use one fence, `frameDone`, so the CPU doesn't start recording the next frame into a command buffer the GPU is still running. That also means the CPU and the GPU take turns: while the GPU works on a frame, the CPU sits and waits. It's slower than it could be, and real engines keep two or three frames in flight so both of them stay busy. We'll do that in the synchronization part. For one clear per frame, it doesn't matter at all.
 
 A semaphore is a signal between two jobs on the GPU. The CPU never waits for it, it only says "this job has to wait for that one". We need two kinds. `imageAvailable` is signaled when the swapchain image we acquired is really free to use, and our drawing waits for it. `renderFinished` is signaled when our drawing is done, and presenting waits for it, so the screen never shows a half-drawn image.
 
@@ -466,6 +488,8 @@ And this is our color! `SDL_GetTicks()` is the number of milliseconds since SDL 
 
 `vkCmdClearColorImage` fills the whole image with that color. The `VkImageSubresourceRange` says which part to clear, and it's the whole image again.
 
+Why a clear and not a real draw? Because drawing needs shaders and a graphics pipeline, and that's the whole next part. A clear is the simplest command that writes pixels, so it's perfect for checking that our swapchain, our command buffer and our synchronization all work before we add anything else.
+
 ![Four screenshots of the same window, taken about 1.4 seconds apart. Three of them say 75 fps because they opened on my external monitor.](/images/VulkanClearColorCycle.webp)
 
 ```cpp
@@ -480,6 +504,14 @@ vkCheck(vkEndCommandBuffer(cmd));
 ```
 
 The second barrier moves the image from `TRANSFER_DST_OPTIMAL` to `PRESENT_SRC_KHR`, the layout the presentation engine wants. The source says that our transfer write, the clear, has to be finished first. The destination is empty, because nothing else in our command buffer uses the image after this, and present waits for the `renderFinished` semaphore anyway. Then `vkEndCommandBuffer` finishes the recording.
+
+You might be wondering what happens if you forget a barrier. I tried it for you: I removed the first one and ran the program. The window still changed colors on my GPU, but the validation layer complained on every single frame:
+
+```
+[vulkan] vkQueueSubmit2(): pSubmits[0] command buffer VkCommandBuffer 0x55b6d1298030 expects VkImage 0x40000000004 (subresource: aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, mipLevel = 0, arrayLayer = 0) to be in layout VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL--instead, current layout is VK_IMAGE_LAYOUT_UNDEFINED.
+```
+
+And this is exactly the dangerous kind of bug. It works on my GPU, so it's easy to ignore, but another GPU that really compresses its images could show garbage or crash. Always fix what the validation layer says, even when everything looks fine. Funny detail: the second half of that message quoted a rule about descriptors, which has nothing to do with our code. The validation layer isn't perfect either, so read the first line first, that's where the real problem is.
 
 ### Submitting the work
 
@@ -550,7 +582,7 @@ if (now - fpsTimer >= std::chrono::seconds(1)) {
 }
 ```
 
-Every frame we add one to `frames`. `std::chrono::steady_clock` is a clock that only goes forward, so it's the right one for measuring time, and once a second has passed, we put the number of frames into the window title and start counting again. `std::format` (C++20) builds the text the same way `std::println` does, and `.c_str()` turns it into the kind of string SDL wants. That's our first profiler, my friend. Very humble, but it works.
+Every frame we add one to `frames`. `std::chrono::steady_clock` is a clock that only goes forward, so it's the right one for measuring time, and once a second has passed, we put the number of frames into the window title and start counting again. `std::format` (C++20) builds the text the same way `std::println` does, and `.c_str()` turns it into the kind of string SDL wants. And if you see 145 on a 144 Hz screen, nothing is wrong. We only look at the clock once per frame, so our "one second" is always a tiny bit longer than a real second. That's our first profiler, my friend. Very humble, but it works.
 
 ## When the window changes size
 
