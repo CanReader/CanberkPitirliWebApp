@@ -125,6 +125,12 @@ export const demos = {
     caption: "Each arrow points from what a call needs to what it makes. Press N to step through the setup and watch which objects each call depends on, or click any box to jump to it. Then turn on the teardown order: everything is destroyed in reverse, children before parents.",
     component: lazy(() => import("./VulkanSetupDemo")),
   },
+  "present-modes": {
+    title: "Three present modes, in slow motion",
+    variants: [""],
+    caption: "One refresh takes a whole second here. The GPU draws frames into the three swapchain images, and the white line paints the screen from top to bottom. Press 1, 2 and 3 to switch modes: FIFO makes the GPU wait, MAILBOX throws frames away, and IMMEDIATE tears the picture. Then try S for a GPU that can't keep up.",
+    component: lazy(() => import("./PresentModesDemo")),
+  },
 };
 
 export function parseDemoSpec(spec) {
