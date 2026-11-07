@@ -4,6 +4,7 @@ date: "2026-11-08"
 category: "Graphics"
 tags: ["Vulkan", "C++", "Tutorials"]
 excerpt: "Part two of my Vulkan series: a swapchain, present modes, our first command buffer, and real colors on the screen at last. Written in C++26."
+source: "https://github.com/CanReader/vulkan-from-scratch/tree/main/02-swapchain-and-presentation"
 visible: true
 ---
 
