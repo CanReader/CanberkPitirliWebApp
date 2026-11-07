@@ -4,6 +4,7 @@ date: "2026-10-25"
 category: "Graphics"
 tags: ["Vulkan", "C++", "Tutorials"]
 excerpt: "The first introduction to game engine development with vulkan!"
+source: "https://github.com/CanReader/vulkan-from-scratch/tree/main/01-instance-and-devices"
 visible: true
 ---
 
