@@ -13,6 +13,8 @@ Let's remember where we left off. In [the first part](/blog/vulkan-instance-and-
 
 Today that changes. Today we put real colors on the screen! It's not a triangle yet, sorry, but it's a window that slowly cycles through colors like a gaming keyboard. To get there we need three new things: a swapchain, a command buffer, and a little bit of synchronization. And yes, Vulkan is going to make us write a few hundred lines of code to change the color of a window. That's Vulkan, my friend. We already made peace with it in part one.
 
+![This is what we build today: a window that clears itself to a new color every frame, 144 times a second on my laptop.](/images/VulkanSwapchainFirstColor.webp)
+
 We continue from the code of part one, in C++26 again, so keep that `main.cpp` open.
 
 ## What is a swapchain?
@@ -99,6 +101,10 @@ Talk is cheap, so I measured all three on my laptop. Its screen runs at 144 Hz:
 | `IMMEDIATE` | between 1,100 and 1,400 |
 
 So with `MAILBOX`, my laptop drew around 1,400 frames every second to show 144 of them. Nine out of ten frames went straight to the trash. My GPU worked like crazy to show the same colors I'd get with `FIFO`.
+
+One funny thing happened while I was taking screenshots for this post. Some of them showed only 75 fps with `FIFO`, and for a second I thought my GPU got tired. It didn't. KDE opened the window on my external monitor, which runs at 75 Hz, and `FIFO` simply follows the refresh rate of the screen the window is on. `MAILBOX` doesn't care about that at all:
+
+![The same program on the same GPU. Top: FIFO on my 144 Hz laptop screen. Middle: FIFO on my 75 Hz external monitor. Bottom: MAILBOX on that same 75 Hz monitor, drawing 1,368 frames a second anyway.](/images/VulkanPresentModeFps.webp)
 
 You can see the difference in the demo below. It runs much slower than a real screen so you can follow every image:
 
@@ -271,6 +277,10 @@ The CPU and the GPU run at the same time, and neither of them waits for the othe
 A fence is a signal from the GPU to the CPU. The GPU signals it when some work is done, and the CPU can wait for it. We use one fence, `frameDone`, so the CPU doesn't start recording the next frame into a command buffer the GPU is still running.
 
 A semaphore is a signal between two jobs on the GPU. The CPU never waits for it, it only says "this job has to wait for that one". We need two kinds. `imageAvailable` is signaled when the swapchain image we acquired is really free to use, and our drawing waits for it. `renderFinished` is signaled when our drawing is done, and presenting waits for it, so the screen never shows a half-drawn image.
+
+This is how one frame goes through the CPU, the GPU and the presentation engine. Come back to it whenever the code below gets confusing:
+
+![One frame of our program. The dashed arrows are calls that ask for something, the blue ones are semaphores, and the orange one is the fence.](/images/VulkanFrameFlow.svg)
 
 ```cpp
 const VkSemaphoreCreateInfo semaphoreInfo{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
@@ -455,6 +465,8 @@ And this is our color! `SDL_GetTicks()` is the number of milliseconds since SDL 
 `VkClearColorValue` is a union. It can hold four floats, four signed integers or four unsigned integers, and `.float32` says we fill the floats. Yes, designated initializers work on unions too. These colors are in linear light, and the sRGB format we picked converts them when they're written.
 
 `vkCmdClearColorImage` fills the whole image with that color. The `VkImageSubresourceRange` says which part to clear, and it's the whole image again.
+
+![Four screenshots of the same window, taken about 1.4 seconds apart. Three of them say 75 fps because they opened on my external monitor.](/images/VulkanClearColorCycle.webp)
 
 ```cpp
 transition(cmd, image, {
