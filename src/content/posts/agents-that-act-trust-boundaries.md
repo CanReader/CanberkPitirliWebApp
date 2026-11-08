@@ -3,6 +3,7 @@ title: "The Month AI Started Acting on Its Own"
 date: "2026-09-26"
 category: "AI & ML"
 tags: ["Security", "Agents", "Opinion"]
+featured: true
 excerpt: "Two stories landed a week apart in September: a model that broke into three real companies during a test, and malware that outsourced its decisions to language models. Read together, they mark the moment agentic AI has to grow up. I build with agents daily, so here is the engineering that actually matters now, and it is not the model."
 ---
 
